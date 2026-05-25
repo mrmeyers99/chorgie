@@ -11,19 +11,31 @@
     "lint": "eslint .",
     "build": "tsc -p tsconfig.json",
     "test": "vitest run --exclude \"dist/**\"",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "migrate:up": "node-pg-migrate up --migrations-dir migrations --migration-file-language js",
+    "migrate:down": "node-pg-migrate down --migrations-dir migrations --migration-file-language js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
     "express": "^5.2.1",
-    "pg": "^8.21.0"
+    "jsonwebtoken": "^9.0.3",
+    "node-pg-migrate": "^8.0.4",
+    "pg": "^8.21.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.9.1",
     "@types/pg": "^8.20.0",
     "@types/supertest": "^7.2.0",
