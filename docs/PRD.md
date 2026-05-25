@@ -212,7 +212,7 @@ POST   /chores/:id/instances                         – client creates instance
 POST   /chores/:id/instances/:instanceId/complete    – mark done (kid); 409 on version mismatch
 DELETE /chores/:id/instances/:instanceId/complete    – undo completion (kid); rejected if instance is already paid (paid_at is set)
 
-GET    /balance/:kidId         – unpaid balance for a kid
+GET    /kids/:id/balance       – unpaid balance for a kid
 
 POST   /payouts                – mark a kid paid: stamps matching instances, creates payout record (admin)
 GET    /payouts                – list payout history, optionally filtered by ?kid_id= (admin)
