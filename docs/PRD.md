@@ -116,6 +116,7 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 - Tapping **"Done!"** triggers an optimistic update and sends a completion record to the API.
 - **Concurrency handling:** if another kid (or the same kid on another device) already marked the chore done, the API returns a `409 Conflict` and the client shows a friendly "Oops, someone already did this one!" message and refreshes.
 - Completed chores move to a "Done today" section and no longer appear in the available list.
+- A kid can **undo** a completion (tap **"Undo"** on a "Done today" chore) to un-mark it, returning it to the available list. This is intended for accidental taps, not for reversing chores already included in a payout cycle (those are locked).
 
 ### 6.6 Balance Tracking
 
@@ -206,7 +207,8 @@ DELETE /chores/:id             – soft-delete (admin)
 
 GET    /instances              – list due/open chore instances for household
 POST   /instances              – client creates instance(s) for computed due dates
-POST   /instances/:id/complete – mark done (kid); 409 on version mismatch
+POST   /instances/:id/complete   – mark done (kid); 409 on version mismatch
+DELETE /instances/:id/complete   – undo completion (kid); rejected if instance is in a closed payout cycle
 GET    /instances/completed    – completed instances for balance view
 
 GET    /balance/:kidId         – unpaid balance for a kid
