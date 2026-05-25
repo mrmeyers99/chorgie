@@ -252,6 +252,35 @@ describe('POST /auth/refresh', () => {
     expect(res.status).toBe(401)
     expect(res.body.error).toMatch(/unauthorized/i)
   })
+
+  it('returns 403 when CSRF header is missing', async () => {
+    const refreshToken = jwt.sign(
+      { sub: 'user-uuid', householdId: 'household-uuid', type: 'refresh' },
+      process.env.JWT_SECRET as string,
+      { expiresIn: '30d' }
+    )
+
+    const res = await request(app)
+      .post('/auth/refresh')
+      .set('Cookie', [`refreshToken=${refreshToken}`, 'csrfToken=test-csrf-token'])
+
+    expect(res.status).toBe(403)
+  })
+
+  it('returns 403 when CSRF header does not match cookie', async () => {
+    const refreshToken = jwt.sign(
+      { sub: 'user-uuid', householdId: 'household-uuid', type: 'refresh' },
+      process.env.JWT_SECRET as string,
+      { expiresIn: '30d' }
+    )
+
+    const res = await request(app)
+      .post('/auth/refresh')
+      .set('Cookie', [`refreshToken=${refreshToken}`, 'csrfToken=test-csrf-token'])
+      .set('x-csrf-token', 'different-csrf-token')
+
+    expect(res.status).toBe(403)
+  })
 })
 
 describe('POST /auth/logout', () => {
@@ -263,5 +292,22 @@ describe('POST /auth/logout', () => {
 
     expect(res.status).toBe(204)
     expect(res.headers['set-cookie']).toBeDefined()
+  })
+
+  it('returns 403 when CSRF header is missing', async () => {
+    const res = await request(app)
+      .post('/auth/logout')
+      .set('Cookie', ['csrfToken=test-csrf-token'])
+
+    expect(res.status).toBe(403)
+  })
+
+  it('returns 403 when CSRF header does not match cookie', async () => {
+    const res = await request(app)
+      .post('/auth/logout')
+      .set('Cookie', ['csrfToken=test-csrf-token'])
+      .set('x-csrf-token', 'different-csrf-token')
+
+    expect(res.status).toBe(403)
   })
 })

@@ -167,6 +167,8 @@ authRouter.post('/refresh', requireCsrf, async (req, res) => {
   try {
     claims = verifyRefreshToken(refreshToken)
   } catch {
+    res.clearCookie('refreshToken', getRefreshCookieOptions())
+    res.clearCookie('csrfToken', getCsrfCookieOptions())
     res.status(401).json({ error: 'Unauthorized' })
     return
   }

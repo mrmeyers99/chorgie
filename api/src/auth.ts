@@ -5,6 +5,7 @@ import { randomBytes } from 'node:crypto'
 const ACCESS_TOKEN_TTL = '15m'
 const REFRESH_TOKEN_TTL = '30d'
 const REFRESH_COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
+const JWT_ALGORITHM: jwt.Algorithm = 'HS256'
 
 type TokenClaims = {
   sub: string
@@ -21,12 +22,13 @@ export function getJwtSecret(): string {
 export function issueTokens(userId: string, householdId: string) {
   const secret = getJwtSecret()
   const accessToken = jwt.sign({ sub: userId, householdId }, secret, {
+    algorithm: JWT_ALGORITHM,
     expiresIn: ACCESS_TOKEN_TTL,
   })
   const refreshToken = jwt.sign(
     { sub: userId, householdId, type: 'refresh' },
     secret,
-    { expiresIn: REFRESH_TOKEN_TTL }
+    { algorithm: JWT_ALGORITHM, expiresIn: REFRESH_TOKEN_TTL }
   )
   return { accessToken, refreshToken }
 }
@@ -56,7 +58,7 @@ export function issueCsrfToken() {
 }
 
 function parseToken(token: string): TokenClaims {
-  const decoded = jwt.verify(token, getJwtSecret())
+  const decoded = jwt.verify(token, getJwtSecret(), { algorithms: [JWT_ALGORITHM] })
   if (
     typeof decoded !== 'object' ||
     typeof decoded.sub !== 'string' ||

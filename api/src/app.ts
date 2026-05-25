@@ -8,6 +8,17 @@ import { requireAuth } from './middleware/auth.js'
 
 export const app = express()
 
+const trustProxySetting = process.env.TRUST_PROXY
+if (trustProxySetting) {
+  const parsedTrustProxy =
+    trustProxySetting === 'true'
+      ? true
+      : /^\d+$/.test(trustProxySetting)
+        ? Number(trustProxySetting)
+        : trustProxySetting
+  app.set('trust proxy', parsedTrustProxy)
+}
+
 const corsOrigin = process.env.CORS_ORIGIN
 app.use(
   cors({
