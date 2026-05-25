@@ -30,4 +30,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  login: (payload) =>
+    request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 }

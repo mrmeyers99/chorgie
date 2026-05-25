@@ -73,6 +73,7 @@ export default function Register() {
 
       // Store access token in memory via sessionStorage for now
       sessionStorage.setItem('accessToken', data.accessToken)
+      sessionStorage.setItem('userEmail', data.user.email)
 
       navigate('/')
     } catch (err) {
