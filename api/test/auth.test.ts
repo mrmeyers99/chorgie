@@ -1,6 +1,7 @@
 import request from 'supertest'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
 import { app } from '../src/app.js'
 
 // Mock the database pool so tests don't need a real Postgres connection
@@ -196,5 +197,117 @@ describe('POST /auth/login', () => {
 
     expect(res.status).toBe(401)
     expect(res.body.error).toMatch(/invalid email or password/i)
+  })
+})
+
+describe('POST /auth/refresh', () => {
+  beforeEach(async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockReset()
+    mockClient.release.mockReset()
+  })
+
+  it('returns a rotated access token for a valid refresh cookie', async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockResolvedValueOnce({
+      rows: [{ id: 'user-uuid', household_id: 'household-uuid' }],
+    })
+
+    const refreshToken = jwt.sign(
+      { sub: 'user-uuid', householdId: 'household-uuid', type: 'refresh' },
+      process.env.JWT_SECRET as string,
+      { expiresIn: '30d' }
+    )
+
+    const res = await request(app)
+      .post('/auth/refresh')
+      .set('Cookie', [`refreshToken=${refreshToken}`, 'csrfToken=test-csrf-token'])
+      .set('x-csrf-token', 'test-csrf-token')
+
+    expect(res.status).toBe(200)
+    expect(res.body.accessToken).toEqual(expect.any(String))
+    expect(res.headers['set-cookie']).toBeDefined()
+    expect(mockClient.query).toHaveBeenCalledWith(expect.any(String), [
+      'user-uuid',
+      'household-uuid',
+    ])
+  })
+
+  it('returns 401 when refresh cookie is missing', async () => {
+    const res = await request(app)
+      .post('/auth/refresh')
+      .set('Cookie', ['csrfToken=test-csrf-token'])
+      .set('x-csrf-token', 'test-csrf-token')
+
+    expect(res.status).toBe(401)
+    expect(res.body.error).toMatch(/unauthorized/i)
+  })
+
+  it('returns 401 for invalid refresh token', async () => {
+    const res = await request(app)
+      .post('/auth/refresh')
+      .set('Cookie', ['refreshToken=invalid-token', 'csrfToken=test-csrf-token'])
+      .set('x-csrf-token', 'test-csrf-token')
+
+    expect(res.status).toBe(401)
+    expect(res.body.error).toMatch(/unauthorized/i)
+  })
+
+  it('returns 403 when CSRF header is missing', async () => {
+    const refreshToken = jwt.sign(
+      { sub: 'user-uuid', householdId: 'household-uuid', type: 'refresh' },
+      process.env.JWT_SECRET as string,
+      { expiresIn: '30d' }
+    )
+
+    const res = await request(app)
+      .post('/auth/refresh')
+      .set('Cookie', [`refreshToken=${refreshToken}`, 'csrfToken=test-csrf-token'])
+
+    expect(res.status).toBe(403)
+  })
+
+  it('returns 403 when CSRF header does not match cookie', async () => {
+    const refreshToken = jwt.sign(
+      { sub: 'user-uuid', householdId: 'household-uuid', type: 'refresh' },
+      process.env.JWT_SECRET as string,
+      { expiresIn: '30d' }
+    )
+
+    const res = await request(app)
+      .post('/auth/refresh')
+      .set('Cookie', [`refreshToken=${refreshToken}`, 'csrfToken=test-csrf-token'])
+      .set('x-csrf-token', 'different-csrf-token')
+
+    expect(res.status).toBe(403)
+  })
+})
+
+describe('POST /auth/logout', () => {
+  it('clears refresh cookie and returns 204', async () => {
+    const res = await request(app)
+      .post('/auth/logout')
+      .set('Cookie', ['csrfToken=test-csrf-token'])
+      .set('x-csrf-token', 'test-csrf-token')
+
+    expect(res.status).toBe(204)
+    expect(res.headers['set-cookie']).toBeDefined()
+  })
+
+  it('returns 403 when CSRF header is missing', async () => {
+    const res = await request(app)
+      .post('/auth/logout')
+      .set('Cookie', ['csrfToken=test-csrf-token'])
+
+    expect(res.status).toBe(403)
+  })
+
+  it('returns 403 when CSRF header does not match cookie', async () => {
+    const res = await request(app)
+      .post('/auth/logout')
+      .set('Cookie', ['csrfToken=test-csrf-token'])
+      .set('x-csrf-token', 'different-csrf-token')
+
+    expect(res.status).toBe(403)
   })
 })

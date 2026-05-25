@@ -1,8 +1,15 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 import { z } from 'zod'
 import { pool } from '../db.js'
+import {
+  issueTokens,
+  getRefreshCookieOptions,
+  verifyRefreshToken,
+  getCsrfCookieOptions,
+  issueCsrfToken,
+} from '../auth.js'
+import { requireCsrf } from '../middleware/csrf.js'
 
 export const authRouter = Router()
 
@@ -18,29 +25,6 @@ const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
 })
-
-const ACCESS_TOKEN_TTL = '15m'
-const REFRESH_TOKEN_TTL = '30d'
-const REFRESH_COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
-
-function getJwtSecret(): string {
-  const secret = process.env.JWT_SECRET
-  if (!secret) throw new Error('JWT_SECRET is required')
-  return secret
-}
-
-function issueTokens(userId: string, householdId: string) {
-  const secret = getJwtSecret()
-  const accessToken = jwt.sign({ sub: userId, householdId }, secret, {
-    expiresIn: ACCESS_TOKEN_TTL,
-  })
-  const refreshToken = jwt.sign(
-    { sub: userId, householdId, type: 'refresh' },
-    secret,
-    { expiresIn: REFRESH_TOKEN_TTL }
-  )
-  return { accessToken, refreshToken }
-}
 
 authRouter.post('/register', async (req, res) => {
   const parsed = registerSchema.safeParse(req.body)
@@ -91,17 +75,14 @@ authRouter.post('/register', async (req, res) => {
     await client.query('COMMIT')
 
     const { accessToken, refreshToken } = issueTokens(userId, householdId)
+    const csrfToken = issueCsrfToken()
 
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: REFRESH_COOKIE_MAX_AGE_MS,
-      path: '/',
-    })
+    res.cookie('refreshToken', refreshToken, getRefreshCookieOptions())
+    res.cookie('csrfToken', csrfToken, getCsrfCookieOptions())
 
     res.status(201).json({
       accessToken,
+      csrfToken,
       user: { id: userId, email: email.toLowerCase() },
       household: { id: householdId, timezone, currency_code },
     })
@@ -160,20 +141,73 @@ authRouter.post('/login', async (req, res) => {
     }
 
     const { accessToken, refreshToken } = issueTokens(user.id, user.household_id)
+    const csrfToken = issueCsrfToken()
 
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: REFRESH_COOKIE_MAX_AGE_MS,
-      path: '/',
-    })
+    res.cookie('refreshToken', refreshToken, getRefreshCookieOptions())
+    res.cookie('csrfToken', csrfToken, getCsrfCookieOptions())
 
     res.status(200).json({
       accessToken,
+      csrfToken,
       user: { id: user.id, email: user.email },
     })
   } finally {
     client.release()
   }
+})
+
+authRouter.post('/refresh', requireCsrf, async (req, res) => {
+  const refreshToken = req.cookies?.refreshToken as string | undefined
+  if (!refreshToken) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+
+  let claims: { sub: string; householdId: string }
+  try {
+    claims = verifyRefreshToken(refreshToken)
+  } catch {
+    res.clearCookie('refreshToken', getRefreshCookieOptions())
+    res.clearCookie('csrfToken', getCsrfCookieOptions())
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+
+  const client = await pool.connect()
+  try {
+    const userResult = await client.query<{
+      id: string
+      household_id: string
+    }>(
+      `SELECT id, household_id
+       FROM users
+       WHERE id = $1 AND household_id = $2
+       LIMIT 1`,
+      [claims.sub, claims.householdId]
+    )
+
+    const user = userResult.rows[0]
+    if (!user) {
+      res.clearCookie('refreshToken', getRefreshCookieOptions())
+      res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
+
+    const { accessToken, refreshToken: nextRefreshToken } = issueTokens(
+      user.id,
+      user.household_id
+    )
+    const csrfToken = issueCsrfToken()
+    res.cookie('refreshToken', nextRefreshToken, getRefreshCookieOptions())
+    res.cookie('csrfToken', csrfToken, getCsrfCookieOptions())
+    res.status(200).json({ accessToken, csrfToken })
+  } finally {
+    client.release()
+  }
+})
+
+authRouter.post('/logout', requireCsrf, (_req, res) => {
+  res.clearCookie('refreshToken', getRefreshCookieOptions())
+  res.clearCookie('csrfToken', getCsrfCookieOptions())
+  res.status(204).send()
 })
