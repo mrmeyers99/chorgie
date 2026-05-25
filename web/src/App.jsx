@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Register from './pages/Register.jsx'
 import Login from './pages/Login.jsx'
@@ -19,7 +19,7 @@ function Home() {
 
   const adminModeToken = sessionStorage.getItem('adminModeToken')
 
-  const loadKids = useCallback(async () => {
+  async function loadKids() {
     setLoadingKids(true)
     try {
       const data = await api.getKids()
@@ -29,11 +29,7 @@ function Home() {
     } finally {
       setLoadingKids(false)
     }
-  }, [])
-
-  useEffect(() => {
-    void loadKids()
-  }, [loadKids])
+  }
 
   async function handleEnterAdminMode(e) {
     e.preventDefault()
@@ -113,6 +109,9 @@ function Home() {
 
       <div style={{ marginTop: 24 }}>
         <h2>Kid profiles</h2>
+        <button type="button" onClick={() => void loadKids()}>
+          Refresh kid profiles
+        </button>
         {loadingKids ? (
           <p>Loading kids…</p>
         ) : kids.length ? (
