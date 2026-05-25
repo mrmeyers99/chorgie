@@ -1,5 +1,15 @@
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
+function getAuthHeader() {
+  const accessToken = sessionStorage.getItem('accessToken')
+  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
+}
+
+function getCsrfHeader() {
+  const csrfToken = sessionStorage.getItem('csrfToken')
+  return csrfToken ? { 'x-csrf-token': csrfToken } : {}
+}
+
 async function request(path, options = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { 'Content-Type': 'application/json', ...options.headers },
@@ -33,6 +43,26 @@ export const api = {
   login: (payload) =>
     request('/auth/login', {
       method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  refresh: () =>
+    request('/auth/refresh', {
+      method: 'POST',
+      headers: getCsrfHeader(),
+    }),
+  logout: () =>
+    request('/auth/logout', {
+      method: 'POST',
+      headers: getCsrfHeader(),
+    }),
+  getHousehold: () =>
+    request('/household', {
+      headers: getAuthHeader(),
+    }),
+  updateHousehold: (payload) =>
+    request('/household', {
+      method: 'PATCH',
+      headers: getAuthHeader(),
       body: JSON.stringify(payload),
     }),
 }

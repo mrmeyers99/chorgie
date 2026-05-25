@@ -28,6 +28,9 @@ export default function Login() {
         password: form.password,
       })
       sessionStorage.setItem('accessToken', data.accessToken)
+      if (data.csrfToken) {
+        sessionStorage.setItem('csrfToken', data.csrfToken)
+      }
       sessionStorage.setItem('userEmail', data.user.email)
       navigate('/')
     } catch (err) {
