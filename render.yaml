@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: chorgie-web
+    env: static
+    buildCommand: cd web && npm ci && npm run build
+    staticPublishPath: ./web/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
