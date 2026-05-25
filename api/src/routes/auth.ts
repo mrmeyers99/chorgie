@@ -100,67 +100,6 @@ authRouter.post('/register', async (req, res) => {
       path: '/',
     })
 
-    authRouter.post('/login', async (req, res) => {
-      const parsed = loginSchema.safeParse(req.body)
-      if (!parsed.success) {
-        const flat = parsed.error.flatten()
-        const message =
-          flat.formErrors[0] ??
-          Object.values(flat.fieldErrors).flat()[0] ??
-          'Invalid request'
-        res.status(400).json({ error: message })
-        return
-      }
-
-      const { email, password } = parsed.data
-      const normalizedEmail = email.toLowerCase()
-
-      const client = await pool.connect()
-      try {
-        const userResult = await client.query<{
-          id: string
-          email: string
-          password_hash: string
-          household_id: string
-        }>(
-          `SELECT id, email, password_hash, household_id
-           FROM users
-           WHERE email = $1
-           LIMIT 1`,
-          [normalizedEmail]
-        )
-
-        const user = userResult.rows[0]
-        if (!user) {
-          res.status(401).json({ error: 'Invalid email or password.' })
-          return
-        }
-
-        const passwordMatches = await bcrypt.compare(password, user.password_hash)
-        if (!passwordMatches) {
-          res.status(401).json({ error: 'Invalid email or password.' })
-          return
-        }
-
-        const { accessToken, refreshToken } = issueTokens(user.id, user.household_id)
-
-        res.cookie('refreshToken', refreshToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-          maxAge: REFRESH_COOKIE_MAX_AGE_MS,
-          path: '/',
-        })
-
-        res.status(200).json({
-          accessToken,
-          user: { id: user.id, email: user.email },
-        })
-      } finally {
-        client.release()
-      }
-    })
-
     res.status(201).json({
       accessToken,
       user: { id: userId, email: email.toLowerCase() },
@@ -173,6 +112,67 @@ authRouter.post('/register', async (req, res) => {
       // ignore rollback errors (e.g. if the transaction already committed)
     }
     throw err
+  } finally {
+    client.release()
+  }
+})
+
+authRouter.post('/login', async (req, res) => {
+  const parsed = loginSchema.safeParse(req.body)
+  if (!parsed.success) {
+    const flat = parsed.error.flatten()
+    const message =
+      flat.formErrors[0] ??
+      Object.values(flat.fieldErrors).flat()[0] ??
+      'Invalid request'
+    res.status(400).json({ error: message })
+    return
+  }
+
+  const { email, password } = parsed.data
+  const normalizedEmail = email.toLowerCase()
+
+  const client = await pool.connect()
+  try {
+    const userResult = await client.query<{
+      id: string
+      email: string
+      password_hash: string
+      household_id: string
+    }>(
+      `SELECT id, email, password_hash, household_id
+       FROM users
+       WHERE email = $1
+       LIMIT 1`,
+      [normalizedEmail]
+    )
+
+    const user = userResult.rows[0]
+    if (!user) {
+      res.status(401).json({ error: 'Invalid email or password.' })
+      return
+    }
+
+    const passwordMatches = await bcrypt.compare(password, user.password_hash)
+    if (!passwordMatches) {
+      res.status(401).json({ error: 'Invalid email or password.' })
+      return
+    }
+
+    const { accessToken, refreshToken } = issueTokens(user.id, user.household_id)
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: REFRESH_COOKIE_MAX_AGE_MS,
+      path: '/',
+    })
+
+    res.status(200).json({
+      accessToken,
+      user: { id: user.id, email: user.email },
+    })
   } finally {
     client.release()
   }
