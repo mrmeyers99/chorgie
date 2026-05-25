@@ -45,6 +45,14 @@ function makeAdminModeToken() {
   )
 }
 
+function makeExpiredAdminModeToken() {
+  return jwt.sign(
+    { sub: 'user-uuid', householdId: 'household-uuid', type: 'admin' },
+    process.env.JWT_SECRET as string,
+    { expiresIn: -1 }
+  )
+}
+
 describe('GET /kids', () => {
   beforeEach(async () => {
     const mockClient = await getMockClient()
@@ -115,6 +123,60 @@ describe('POST /kids', () => {
 
     expect(res.status).toBe(201)
     expect(res.body.id).toBe('kid-1')
+  })
+
+  it('rejects malformed admin mode token', async () => {
+    const res = await request(app)
+      .post('/kids')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .set('x-admin-mode-token', 'not-a-jwt')
+      .send({ enc_display_name: 'enc-name', avatar_id: 'corgi-1' })
+
+    expect(res.status).toBe(403)
+  })
+
+  it('rejects expired admin mode token', async () => {
+    const res = await request(app)
+      .post('/kids')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .set('x-admin-mode-token', makeExpiredAdminModeToken())
+      .send({ enc_display_name: 'enc-name', avatar_id: 'corgi-1' })
+
+    expect(res.status).toBe(403)
+  })
+
+  it('rejects admin mode token with wrong user or household claims', async () => {
+    const res = await request(app)
+      .post('/kids')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .set(
+        'x-admin-mode-token',
+        jwt.sign(
+          { sub: 'different-user', householdId: 'different-household', type: 'admin' },
+          process.env.JWT_SECRET as string,
+          { expiresIn: '10m' }
+        )
+      )
+      .send({ enc_display_name: 'enc-name', avatar_id: 'corgi-1' })
+
+    expect(res.status).toBe(403)
+  })
+
+  it('rejects non-admin token in admin mode header', async () => {
+    const res = await request(app)
+      .post('/kids')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .set(
+        'x-admin-mode-token',
+        jwt.sign(
+          { sub: 'user-uuid', householdId: 'household-uuid', type: 'refresh' },
+          process.env.JWT_SECRET as string,
+          { expiresIn: '10m' }
+        )
+      )
+      .send({ enc_display_name: 'enc-name', avatar_id: 'corgi-1' })
+
+    expect(res.status).toBe(403)
   })
 })
 

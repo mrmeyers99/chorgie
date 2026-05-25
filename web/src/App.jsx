@@ -37,7 +37,7 @@ function Home() {
     try {
       const data = await api.enterAdminMode({ pin })
       sessionStorage.setItem('adminModeToken', data.adminModeToken)
-      setStatus('Admin mode enabled for 10 minutes.')
+      setStatus(`Admin mode enabled for ${data.expiresInSeconds} seconds.`)
       setPin('')
     } catch (err) {
       setStatus(err.message ?? 'Unable to enter admin mode.')
@@ -72,10 +72,11 @@ function Home() {
           <br />
           <input
             id="pin"
+            type="password"
             value={pin}
             onChange={(e) => setPin(e.target.value)}
             inputMode="numeric"
-            pattern="\d{4,8}"
+            pattern="[0-9]{4,8}"
             required
           />
           <button type="submit" style={{ marginLeft: 8 }}>

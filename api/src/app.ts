@@ -44,6 +44,12 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 })
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+})
 
 app.use(apiLimiter)
 
@@ -52,6 +58,6 @@ app.get('/health', (_req, res) => {
 })
 
 app.use('/auth', authLimiter, authRouter)
-app.use('/admin', requireAuth, adminRouter)
+app.use('/admin', adminLimiter, requireAuth, adminRouter)
 app.use('/household', requireAuth, householdRouter)
 app.use('/kids', requireAuth, kidsRouter)

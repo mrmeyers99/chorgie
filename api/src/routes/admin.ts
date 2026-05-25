@@ -2,7 +2,7 @@ import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { pool } from '../db.js'
-import { issueAdminModeToken } from '../auth.js'
+import { ADMIN_MODE_TOKEN_TTL_SECONDS, issueAdminModeToken } from '../auth.js'
 
 export const adminRouter = Router()
 
@@ -46,7 +46,7 @@ adminRouter.post('/enter', async (req, res) => {
     }
 
     const adminModeToken = issueAdminModeToken(userId, householdId)
-    res.status(200).json({ adminModeToken, expiresInSeconds: 600 })
+    res.status(200).json({ adminModeToken, expiresInSeconds: ADMIN_MODE_TOKEN_TTL_SECONDS })
   } finally {
     client.release()
   }
