@@ -11,7 +11,7 @@ const startServer = async () => {
   })
 }
 
-void startServer().catch((error: unknown) => {
+void startServer().catch((error) => {
   console.error('Failed to start API', error)
   process.exit(1)
 })
