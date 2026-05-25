@@ -46,7 +46,7 @@ The product is intentionally simple in scope for the MVP: no push notifications,
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Stack | Separate Node.js API + React SPA (Vite) | Clean separation; SPA can own client-side crypto |
-| Database | PostgreSQL on Heroku | Simple, managed, relational |
+| Database | PostgreSQL on Render | Simple, managed, relational |
 | Auth | Email/password (JWT) | Familiar, low friction for MVP |
 | Encryption | Client-side E2E | Server stores ciphertext; server cannot read household chore content |
 | Design system | Corgi-themed | Dog-themed, playful, family-friendly |
@@ -147,7 +147,7 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 | Security | All API routes require valid JWT except `/auth/*`. Admin routes additionally require admin-mode session token. |
 | Privacy | Server-side data contains no readable household content (names, descriptions). |
 | Performance | No performance requirement during MVP, especially since we'll be using the eco plan |
-| Availability | Heroku eco dyno; no SLA target for MVP. |
+| Availability | Render service tier; no SLA target for MVP. |
 | Accessibility | WCAG 2.1 AA target for kid-facing screens. |
 | Browser support | Last 2 versions of Chrome, Firefox, Safari, Edge. |
 
@@ -262,4 +262,4 @@ GET    /payouts/:id            – get a single payout with its chore instances 
 | 5 | Chore instances & completion | Client-computed due dates, mark done, concurrency (409) |
 | 6 | Balances & payouts | Balance display, mark paid, archive cycle |
 | 7 | Design system | Corgi theme, component library, kid-friendly UX polish |
-| 8 | Hardening & deploy | Heroku deploy config, security review, accessibility pass |
+| 8 | Hardening & deploy | Render deploy config, security review, accessibility pass |
