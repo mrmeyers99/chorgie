@@ -1,5 +1,6 @@
 import request from 'supertest'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
+import bcrypt from 'bcryptjs'
 import { app } from '../src/app.js'
 
 // Mock the database pool so tests don't need a real Postgres connection
@@ -50,6 +51,8 @@ describe('POST /auth/register', () => {
     const mockClient = await getMockClient()
     mockClient.query.mockReset()
     mockClient.release.mockReset()
+    vi.mocked(bcrypt.compare).mockReset()
+    vi.mocked(bcrypt.compare).mockResolvedValue(true)
 
     // Default: BEGIN, no existing user, household insert, user insert, COMMIT
     mockClient.query
@@ -117,5 +120,81 @@ describe('POST /auth/register', () => {
 
     expect(res.status).toBe(201)
     expect(res.body.user.email).toBe('admin@example.com')
+  })
+})
+
+describe('POST /auth/login', () => {
+  beforeEach(async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockReset()
+    mockClient.release.mockReset()
+    vi.mocked(bcrypt.compare).mockReset()
+    vi.mocked(bcrypt.compare).mockResolvedValue(true)
+  })
+
+  it('returns 200 with accessToken for valid credentials', async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 'user-uuid',
+          email: 'admin@example.com',
+          password_hash: 'stored-hash',
+          household_id: 'household-uuid',
+        },
+      ],
+    })
+
+    const res = await request(app).post('/auth/login').send({
+      email: 'Admin@Example.COM',
+      password: 'password123',
+    })
+
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({
+      accessToken: expect.any(String),
+      user: { id: 'user-uuid', email: 'admin@example.com' },
+    })
+    expect(res.headers['set-cookie']).toBeDefined()
+    expect(mockClient.query).toHaveBeenCalledWith(expect.any(String), [
+      'admin@example.com',
+    ])
+    expect(bcrypt.compare).toHaveBeenCalledWith('password123', 'stored-hash')
+  })
+
+  it('returns 401 when user does not exist', async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockResolvedValueOnce({ rows: [] })
+
+    const res = await request(app).post('/auth/login').send({
+      email: 'missing@example.com',
+      password: 'password123',
+    })
+
+    expect(res.status).toBe(401)
+    expect(res.body.error).toMatch(/invalid email or password/i)
+  })
+
+  it('returns 401 when password is incorrect', async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 'user-uuid',
+          email: 'admin@example.com',
+          password_hash: 'stored-hash',
+          household_id: 'household-uuid',
+        },
+      ],
+    })
+    vi.mocked(bcrypt.compare).mockResolvedValueOnce(false)
+
+    const res = await request(app).post('/auth/login').send({
+      email: 'admin@example.com',
+      password: 'wrongpassword',
+    })
+
+    expect(res.status).toBe(401)
+    expect(res.body.error).toMatch(/invalid email or password/i)
   })
 })
