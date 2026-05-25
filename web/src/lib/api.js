@@ -11,9 +11,11 @@ async function request(path, options = {}) {
 
   if (!res.ok) {
     const message =
-      body?.error?.formErrors?.[0] ??
-      body?.error ??
-      `Request failed with status ${res.status}`
+      typeof body?.error === 'string'
+        ? body.error
+        : body?.error?.formErrors?.[0] ??
+          Object.values(body?.error?.fieldErrors ?? {}).flat()[0] ??
+          `Request failed with status ${res.status}`
     const err = new Error(message)
     err.status = res.status
     throw err

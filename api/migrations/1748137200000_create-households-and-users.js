@@ -2,6 +2,8 @@
  * @param {import('node-pg-migrate').MigrationBuilder} pgm
  */
 export const up = (pgm) => {
+  pgm.createExtension('pgcrypto', { ifNotExists: true })
+
   pgm.createTable('households', {
     id: {
       type: 'uuid',

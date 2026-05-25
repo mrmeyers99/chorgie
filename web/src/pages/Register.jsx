@@ -4,7 +4,25 @@ import { deriveHouseholdKey } from '../lib/crypto.js'
 import { api } from '../lib/api.js'
 import styles from './Register.module.css'
 
-const TIMEZONES = Intl.supportedValuesOf('timeZone')
+const TIMEZONES =
+  typeof Intl.supportedValuesOf === 'function'
+    ? Intl.supportedValuesOf('timeZone')
+    : [
+        'America/New_York',
+        'America/Chicago',
+        'America/Denver',
+        'America/Los_Angeles',
+        'America/Anchorage',
+        'Pacific/Honolulu',
+        'Europe/London',
+        'Europe/Berlin',
+        'Europe/Paris',
+        'Asia/Tokyo',
+        'Asia/Shanghai',
+        'Asia/Kolkata',
+        'Australia/Sydney',
+        'Pacific/Auckland',
+      ]
 const CURRENCIES = [
   { code: 'USD', label: 'USD — US Dollar ($)' },
   { code: 'EUR', label: 'EUR — Euro (€)' },

@@ -40,7 +40,12 @@ function issueTokens(userId: string, householdId: string) {
 authRouter.post('/register', async (req, res) => {
   const parsed = registerSchema.safeParse(req.body)
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.flatten() })
+    const flat = parsed.error.flatten()
+    const message =
+      flat.formErrors[0] ??
+      Object.values(flat.fieldErrors).flat()[0] ??
+      'Invalid request'
+    res.status(400).json({ error: message })
     return
   }
 
@@ -85,9 +90,9 @@ authRouter.post('/register', async (req, res) => {
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: REFRESH_COOKIE_MAX_AGE_MS,
-      path: '/auth/refresh',
+      path: '/',
     })
 
     res.status(201).json({
@@ -96,7 +101,11 @@ authRouter.post('/register', async (req, res) => {
       household: { id: householdId, timezone, currency_code },
     })
   } catch (err) {
-    await client.query('ROLLBACK')
+    try {
+      await client.query('ROLLBACK')
+    } catch {
+      // ignore rollback errors (e.g. if the transaction already committed)
+    }
     throw err
   } finally {
     client.release()

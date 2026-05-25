@@ -20,7 +20,10 @@ export function getPool(): Pool {
 // Convenience re-export so existing imports keep working
 export const pool = new Proxy({} as Pool, {
   get(_target, prop) {
-    return getPool()[prop as keyof Pool]
+    const value = getPool()[prop as keyof Pool]
+    return typeof value === 'function'
+      ? (value as (...args: unknown[]) => unknown).bind(getPool())
+      : value
   },
 })
 
