@@ -142,7 +142,7 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 |---------|-------------|
 | Security | All API routes require valid JWT except `/auth/*`. Admin routes additionally require admin-mode session token. |
 | Privacy | Server-side data contains no readable household content (names, descriptions). |
-| Performance | API p95 response < 500 ms for all list endpoints under normal household load (< 10 users). |
+| Performance | No performance requirement during MVP, especially since we'll be using the eco plan |
 | Availability | Heroku eco dyno; no SLA target for MVP. |
 | Accessibility | WCAG 2.1 AA target for kid-facing screens. |
 | Browser support | Last 2 versions of Chrome, Firefox, Safari, Edge. |
