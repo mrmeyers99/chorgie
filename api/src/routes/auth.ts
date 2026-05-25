@@ -16,6 +16,7 @@ export const authRouter = Router()
 const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
+  admin_pin: z.string().regex(/^\d{4,8}$/),
   timezone: z.string().min(1),
   currency_code: z.string().min(1).max(10).default('USD'),
   enc_salt: z.string().min(1),
@@ -38,7 +39,7 @@ authRouter.post('/register', async (req, res) => {
     return
   }
 
-  const { email, password, timezone, currency_code, enc_salt } = parsed.data
+  const { email, password, admin_pin, timezone, currency_code, enc_salt } = parsed.data
 
   const client = await pool.connect()
   try {
@@ -63,12 +64,13 @@ authRouter.post('/register', async (req, res) => {
     const householdId = householdResult.rows[0].id
 
     const passwordHash = await bcrypt.hash(password, 12)
+    const adminPinHash = await bcrypt.hash(admin_pin, 12)
 
     const userResult = await client.query<{ id: string }>(
-      `INSERT INTO users (household_id, email, password_hash)
-       VALUES ($1, $2, $3)
+      `INSERT INTO users (household_id, email, password_hash, admin_pin_hash)
+       VALUES ($1, $2, $3, $4)
        RETURNING id`,
-      [householdId, email.toLowerCase(), passwordHash]
+      [householdId, email.toLowerCase(), passwordHash, adminPinHash]
     )
     const userId = userResult.rows[0].id
 

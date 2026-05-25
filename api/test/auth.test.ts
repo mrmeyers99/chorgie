@@ -33,6 +33,7 @@ process.env.JWT_SECRET = 'test-secret-for-unit-tests'
 const validBody = {
   email: 'admin@example.com',
   password: 'password123',
+  admin_pin: '1234',
   timezone: 'America/Chicago',
   currency_code: 'USD',
   enc_salt: 'base64encodedSalt==',
@@ -96,6 +97,14 @@ describe('POST /auth/register', () => {
     const res = await request(app)
       .post('/auth/register')
       .send({ ...validBody, password: 'short' })
+
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 400 for invalid admin PIN', async () => {
+    const res = await request(app)
+      .post('/auth/register')
+      .send({ ...validBody, admin_pin: '12ab' })
 
     expect(res.status).toBe(400)
   })

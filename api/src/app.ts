@@ -5,6 +5,8 @@ import rateLimit from 'express-rate-limit'
 import { authRouter } from './routes/auth.js'
 import { householdRouter } from './routes/household.js'
 import { requireAuth } from './middleware/auth.js'
+import { adminRouter } from './routes/admin.js'
+import { kidsRouter } from './routes/kids.js'
 
 export const app = express()
 
@@ -50,4 +52,6 @@ app.get('/health', (_req, res) => {
 })
 
 app.use('/auth', authLimiter, authRouter)
+app.use('/admin', requireAuth, adminRouter)
 app.use('/household', requireAuth, householdRouter)
+app.use('/kids', requireAuth, kidsRouter)
