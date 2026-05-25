@@ -205,11 +205,12 @@ POST   /chores                 – create chore definition (admin)
 PATCH  /chores/:id             – update chore definition (admin)
 DELETE /chores/:id             – soft-delete (admin)
 
-GET    /instances              – list due/open chore instances for household
-POST   /instances              – client creates instance(s) for computed due dates
-POST   /instances/:id/complete   – mark done (kid); 409 on version mismatch
-DELETE /instances/:id/complete   – undo completion (kid); rejected if instance is already paid (paid_at is set)
-GET    /instances/completed    – completed instances for balance view
+GET    /chore_instances                              – list due/open chore instances for household
+GET    /chore_instances/completed                    – completed instances for balance view
+
+POST   /chores/:id/instances                         – client creates instance(s) for a chore definition's computed due dates
+POST   /chores/:id/instances/:instanceId/complete    – mark done (kid); 409 on version mismatch
+DELETE /chores/:id/instances/:instanceId/complete    – undo completion (kid); rejected if instance is already paid (paid_at is set)
 
 GET    /balance/:kidId         – unpaid balance for a kid
 
