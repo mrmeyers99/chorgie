@@ -34,8 +34,10 @@ The product is intentionally simple in scope for the MVP: no push notifications,
 
 | Role | Description |
 |------|-------------|
-| **Household Admin (Parent)** | Registers the household, manages chore definitions, kids' profiles and payouts. Accesses admin features via PIN-protected admin mode. |
-| **Kid** | Taps their avatar on the household screen, views assigned/available chores, marks them done, and sees their balance. |
+| **Household Admin (Parent)** | The sole authenticated user for a household. Registers the household with an email + password, manages chore definitions, kids' profiles, and payouts. Accesses admin features via PIN-protected admin mode. |
+| **Kid** | Has no user account or password. Represented only as a kid profile. Taps their avatar on the household screen, views assigned/available chores, marks them done, and sees their balance. |
+
+> **Design note:** One admin per household (MVP). Kids are profiles, not users — no login, no password, no session of their own. Households and users are kept as separate tables for future-proofing (e.g. multi-admin support post-MVP).
 
 ---
 
@@ -62,7 +64,7 @@ All **household-specific user-generated content** (chore names, descriptions, ki
 
 ### What is stored in plaintext on the server
 - Household ID, timezone, currency code
-- User IDs, email address (for auth), password hash
+- Admin user ID, email address (for auth), password hash
 - Chore IDs, due-date timestamps (derived by the client), completion timestamps
 - Archived payout IDs and timestamps
 
@@ -156,7 +158,8 @@ households
   id, timezone, currency_code, enc_salt, created_at
 
 users
-  id, household_id, email, password_hash, admin_pin_hash, role (admin|kid), created_at
+  id, household_id, email, password_hash, admin_pin_hash, created_at
+  -- one user (the admin) per household; kids are not users
 
 kid_profiles
   id, household_id, enc_display_name, avatar_id, sort_order, is_active, created_at
