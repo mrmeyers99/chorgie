@@ -116,7 +116,7 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 - Tapping **"Done!"** triggers an optimistic update and sends a completion record to the API.
 - **Concurrency handling:** if another kid (or the same kid on another device) already marked the chore done, the API returns a `409 Conflict` and the client shows a friendly "Oops, someone already did this one!" message and refreshes.
 - Completed chores move to a "Done today" section and no longer appear in the available list.
-- A kid can **undo** a completion (tap **"Undo"** on a "Done today" chore) to un-mark it, returning it to the available list. This is intended for accidental taps, not for reversing chores already included in a payout cycle (those are locked).
+- A kid can **undo** a completion (tap **"Undo"** on a "Done today" chore) to un-mark it, returning it to the available list. This is intended for accidental taps; undo is blocked once the chore instance has been marked paid.
 
 ### 6.6 Balance Tracking
 
@@ -124,12 +124,13 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 - Balances are displayed on the kid dashboard and the admin overview.
 - Household admin configures the **currency symbol / code** (default: USD / $).
 
-### 6.7 Mark Paid / Payout Archive
+### 6.7 Mark Paid
 
-- Admin selects one or more kids and taps **"Mark Paid"**.
-- All completed chores for those kids in the current open cycle are **archived** (soft-deleted with an `archived_at` timestamp and a reference to a `payout_cycle` record).
-- The kid's unpaid balance resets to $0.
-- Archived chores are hidden from the default view but retained for future reporting.
+- Admin selects a kid and taps **"Mark Paid"** to record a payout for that kid.
+- Each payout is **per kid** — kids can be paid on completely independent schedules.
+- All completed-but-unpaid `chore_instances` for that kid are stamped with `paid_at` and linked to the new payout record. The kid's unpaid balance resets to $0.
+- The admin can optionally add a **note** to the payout (e.g., "cash", "bank transfer", or "cash for chores + $5 bonus") before confirming.
+- Paid chore instances are hidden from the default balance view but retained for history.
 
 ### 6.8 Timezone & Locale
 
@@ -171,13 +172,12 @@ chore_definitions
 
 chore_instances
   id, chore_definition_id, household_id, due_at, assigned_kid_id (nullable),
-  completed_at, completed_by_kid_id, version (for optimistic lock), created_at
+  completed_at, completed_by_kid_id, version (for optimistic lock),
+  payout_id (nullable FK → payouts), paid_at (nullable), created_at
 
-payout_cycles
-  id, household_id, enc_notes, paid_at, created_at
-
-completed_chore_archives
-  id, chore_instance_id, payout_cycle_id, kid_id, reward_amount_snapshot, archived_at
+payouts
+  id, household_id, kid_id, enc_notes (nullable), paid_at, created_at
+  -- one record per kid per payment event; no concept of household-wide cycles
 ```
 
 ---
@@ -208,13 +208,14 @@ DELETE /chores/:id             – soft-delete (admin)
 GET    /instances              – list due/open chore instances for household
 POST   /instances              – client creates instance(s) for computed due dates
 POST   /instances/:id/complete   – mark done (kid); 409 on version mismatch
-DELETE /instances/:id/complete   – undo completion (kid); rejected if instance is in a closed payout cycle
+DELETE /instances/:id/complete   – undo completion (kid); rejected if instance is already paid (paid_at is set)
 GET    /instances/completed    – completed instances for balance view
 
 GET    /balance/:kidId         – unpaid balance for a kid
 
-POST   /payouts                – create payout cycle + archive completed chores (admin)
-GET    /payouts                – list payout cycles (admin)
+POST   /payouts                – mark a kid paid: stamps matching instances, creates payout record (admin)
+GET    /payouts                – list payout history, optionally filtered by ?kid_id= (admin)
+GET    /payouts/:id            – get a single payout with its chore instances (admin)
 ```
 
 ---
