@@ -5,14 +5,14 @@ services:
     image: postgres:18-alpine
     environment:
       POSTGRES_DB: chorgie
-      POSTGRES_USER: chorgie
-      POSTGRES_PASSWORD: chorgie
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U chorgie -d chorgie"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -24,7 +24,7 @@ services:
     working_dir: /workspace
     command: sh -c "npm run migrate:up --workspace api && npm run dev --workspace api"
     environment:
-      DATABASE_URL: postgresql://chorgie:chorgie@postgres:5432/chorgie
+      DATABASE_URL: postgresql://${POSTGRES_USER:?set POSTGRES_USER}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/chorgie
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
       CORS_ORIGIN: http://localhost:5173
       PORT: 3000
