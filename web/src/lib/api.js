@@ -1,5 +1,20 @@
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
+function handleExpiredSession() {
+  sessionStorage.removeItem('accessToken')
+  sessionStorage.removeItem('csrfToken')
+  sessionStorage.removeItem('adminModeToken')
+  sessionStorage.removeItem('userEmail')
+  window.location.replace('/login')
+}
+
+function shouldRedirectToLogin(path) {
+  if (path === '/auth/login' || path === '/auth/register') {
+    return false
+  }
+  return Boolean(sessionStorage.getItem('accessToken'))
+}
+
 function getAuthHeader() {
   const accessToken = sessionStorage.getItem('accessToken')
   return accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
@@ -25,6 +40,10 @@ async function request(path, options = {}) {
   const body = await res.json().catch(() => ({}))
 
   if (!res.ok) {
+    if (res.status === 401 && shouldRedirectToLogin(path)) {
+      handleExpiredSession()
+    }
+
     const message =
       typeof body?.error === 'string'
         ? body.error
