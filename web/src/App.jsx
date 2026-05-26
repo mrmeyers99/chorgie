@@ -34,8 +34,13 @@ function Home() {
   async function handleEnterAdminMode(e) {
     e.preventDefault()
     setStatus('')
+    const normalizedPin = pin.replace(/\D/g, '')
+    if (!/^\d{4,8}$/.test(normalizedPin)) {
+      setStatus('PIN must be 4-8 digits.')
+      return
+    }
     try {
-      const data = await api.enterAdminMode({ pin })
+      const data = await api.enterAdminMode({ pin: normalizedPin })
       sessionStorage.setItem('adminModeToken', data.adminModeToken)
       setStatus(`Admin mode enabled for ${data.expiresInSeconds} seconds.`)
       setPin('')
@@ -67,16 +72,18 @@ function Home() {
       {status ? <p role="status">{status}</p> : null}
 
       {!adminModeToken ? (
-        <form onSubmit={handleEnterAdminMode} style={{ marginTop: 16 }}>
+        <form onSubmit={handleEnterAdminMode} noValidate style={{ marginTop: 16 }}>
           <label htmlFor="pin">Enter admin PIN</label>
           <br />
           <input
             id="pin"
             type="password"
             value={pin}
-            onChange={(e) => setPin(e.target.value)}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 8))}
             inputMode="numeric"
             pattern="[0-9]{4,8}"
+            minLength={4}
+            maxLength={8}
             required
           />
           <button type="submit" style={{ marginLeft: 8 }}>
