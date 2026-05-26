@@ -1,0 +1,66 @@
+name: chorgie
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: chorgie
+      POSTGRES_USER: chorgie
+      POSTGRES_PASSWORD: chorgie
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chorgie -d chorgie"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /workspace
+    command: sh -c "npm run migrate:up --workspace api && npm run dev --workspace api"
+    environment:
+      DATABASE_URL: postgresql://chorgie:chorgie@postgres:5432/chorgie
+      JWT_SECRET: local-dev-jwt-secret-change-me
+      CORS_ORIGIN: http://localhost:5173
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/workspace
+      - root-node-modules:/workspace/node_modules
+      - api-node-modules:/workspace/api/node_modules
+      - web-node-modules:/workspace/web/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /workspace
+    command: npm run dev --workspace web -- --host 0.0.0.0 --port 5173
+    environment:
+      VITE_API_URL: http://localhost:3000
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/workspace
+      - root-node-modules:/workspace/node_modules
+      - api-node-modules:/workspace/api/node_modules
+      - web-node-modules:/workspace/web/node_modules
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  postgres-data:
+  root-node-modules:
+  api-node-modules:
+  web-node-modules:
