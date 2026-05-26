@@ -64,21 +64,16 @@ function Home() {
     } catch (err) {
       setStatus(err.message ?? 'Unable to create kid profile.')
     }
+  }
 
-    async function handleLogout(e) {
-      e.preventDefault()
-      try {
-        await api.logout()
-      } catch {
-        // Clear client auth state even if server logout fails
-      } finally {
-        sessionStorage.removeItem('accessToken')
-        sessionStorage.removeItem('csrfToken')
-        sessionStorage.removeItem('adminModeToken')
-        sessionStorage.removeItem('userEmail')
-        navigate('/login', { replace: true })
-      }
-    }
+  async function handleLogout(e) {
+    e.preventDefault()
+    await api.logout().catch(() => null)
+    sessionStorage.removeItem('accessToken')
+    sessionStorage.removeItem('csrfToken')
+    sessionStorage.removeItem('adminModeToken')
+    sessionStorage.removeItem('userEmail')
+    navigate('/login', { replace: true })
   }
 
   return (
