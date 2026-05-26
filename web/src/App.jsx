@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import Register from './pages/Register.jsx'
 import Login from './pages/Login.jsx'
 import { api } from './lib/api.js'
 
 function Home() {
+  const navigate = useNavigate()
   const userEmail = sessionStorage.getItem('userEmail')
   const [pin, setPin] = useState('')
   const [status, setStatus] = useState('')
@@ -63,12 +64,32 @@ function Home() {
     } catch (err) {
       setStatus(err.message ?? 'Unable to create kid profile.')
     }
+
+    async function handleLogout(e) {
+      e.preventDefault()
+      try {
+        await api.logout()
+      } catch {
+        // Clear client auth state even if server logout fails
+      } finally {
+        sessionStorage.removeItem('accessToken')
+        sessionStorage.removeItem('csrfToken')
+        sessionStorage.removeItem('adminModeToken')
+        sessionStorage.removeItem('userEmail')
+        navigate('/login', { replace: true })
+      }
+    }
   }
 
   return (
     <section style={{ padding: '40px 24px', textAlign: 'center' }}>
       <h1>Chorgie</h1>
       <p>Welcome, {userEmail}!</p>
+      <p>
+        <a href="/login" onClick={handleLogout}>
+          Log out
+        </a>
+      </p>
       {status ? <p role="status">{status}</p> : null}
 
       {!adminModeToken ? (
