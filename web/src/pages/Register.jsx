@@ -40,6 +40,8 @@ export default function Register() {
     email: '',
     password: '',
     confirmPassword: '',
+    admin_pin: '',
+    confirmAdminPin: '',
     timezone: DEFAULT_TZ,
     currency_code: 'USD',
   })
@@ -58,6 +60,14 @@ export default function Register() {
       setError('Passwords do not match.')
       return
     }
+    if (!/^\d{4,8}$/.test(form.admin_pin)) {
+      setError('Admin PIN must be 4 to 8 digits.')
+      return
+    }
+    if (form.admin_pin !== form.confirmAdminPin) {
+      setError('Admin PINs do not match.')
+      return
+    }
 
     setLoading(true)
     try {
@@ -66,6 +76,7 @@ export default function Register() {
       const data = await api.register({
         email: form.email,
         password: form.password,
+        admin_pin: form.admin_pin,
         timezone: form.timezone,
         currency_code: form.currency_code,
         enc_salt: encSalt,
@@ -138,6 +149,41 @@ export default function Register() {
               autoComplete="new-password"
               required
               value={form.confirmPassword}
+              onChange={handleChange}
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label htmlFor="admin_pin">Admin PIN</label>
+            <input
+              id="admin_pin"
+              name="admin_pin"
+              type="password"
+              autoComplete="new-password"
+              inputMode="numeric"
+              pattern="[0-9]{4,8}"
+              minLength={4}
+              maxLength={8}
+              required
+              value={form.admin_pin}
+              onChange={handleChange}
+            />
+            <small>4 to 8 digits for admin mode</small>
+          </div>
+
+          <div className={styles.field}>
+            <label htmlFor="confirmAdminPin">Confirm admin PIN</label>
+            <input
+              id="confirmAdminPin"
+              name="confirmAdminPin"
+              type="password"
+              autoComplete="new-password"
+              inputMode="numeric"
+              pattern="[0-9]{4,8}"
+              minLength={4}
+              maxLength={8}
+              required
+              value={form.confirmAdminPin}
               onChange={handleChange}
             />
           </div>

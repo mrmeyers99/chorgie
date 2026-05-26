@@ -5,6 +5,8 @@ import rateLimit from 'express-rate-limit'
 import { authRouter } from './routes/auth.js'
 import { householdRouter } from './routes/household.js'
 import { requireAuth } from './middleware/auth.js'
+import { adminRouter } from './routes/admin.js'
+import { kidsRouter } from './routes/kids.js'
 
 export const app = express()
 
@@ -42,6 +44,12 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 })
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+})
 
 app.use(apiLimiter)
 
@@ -50,4 +58,6 @@ app.get('/health', (_req, res) => {
 })
 
 app.use('/auth', authLimiter, authRouter)
+app.use('/admin', adminLimiter, requireAuth, adminRouter)
 app.use('/household', requireAuth, householdRouter)
+app.use('/kids', requireAuth, kidsRouter)

@@ -10,6 +10,11 @@ function getCsrfHeader() {
   return csrfToken ? { 'x-csrf-token': csrfToken } : {}
 }
 
+function getAdminModeHeader() {
+  const adminModeToken = sessionStorage.getItem('adminModeToken')
+  return adminModeToken ? { 'x-admin-mode-token': adminModeToken } : {}
+}
+
 async function request(path, options = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { 'Content-Type': 'application/json', ...options.headers },
@@ -63,6 +68,33 @@ export const api = {
     request('/household', {
       method: 'PATCH',
       headers: getAuthHeader(),
+      body: JSON.stringify(payload),
+    }),
+  enterAdminMode: (payload) =>
+    request('/admin/enter', {
+      method: 'POST',
+      headers: getAuthHeader(),
+      body: JSON.stringify(payload),
+    }),
+  exitAdminMode: () =>
+    request('/admin/exit', {
+      method: 'POST',
+      headers: getAuthHeader(),
+    }),
+  getKids: () =>
+    request('/kids', {
+      headers: getAuthHeader(),
+    }),
+  createKid: (payload) =>
+    request('/kids', {
+      method: 'POST',
+      headers: { ...getAuthHeader(), ...getAdminModeHeader() },
+      body: JSON.stringify(payload),
+    }),
+  updateKid: (id, payload) =>
+    request(`/kids/${id}`, {
+      method: 'PATCH',
+      headers: { ...getAuthHeader(), ...getAdminModeHeader() },
       body: JSON.stringify(payload),
     }),
 }

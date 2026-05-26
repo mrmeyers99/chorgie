@@ -4,6 +4,8 @@ import { randomBytes } from 'node:crypto'
 
 const ACCESS_TOKEN_TTL = '15m'
 const REFRESH_TOKEN_TTL = '30d'
+export const ADMIN_MODE_TOKEN_TTL_SECONDS = 10 * 60
+const ADMIN_MODE_TOKEN_TTL = `${ADMIN_MODE_TOKEN_TTL_SECONDS}s`
 const REFRESH_COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
 const JWT_ALGORITHM: jwt.Algorithm = 'HS256'
 
@@ -31,6 +33,14 @@ export function issueTokens(userId: string, householdId: string) {
     { algorithm: JWT_ALGORITHM, expiresIn: REFRESH_TOKEN_TTL }
   )
   return { accessToken, refreshToken }
+}
+
+export function issueAdminModeToken(userId: string, householdId: string) {
+  const secret = getJwtSecret()
+  return jwt.sign({ sub: userId, householdId, type: 'admin' }, secret, {
+    algorithm: JWT_ALGORITHM,
+    expiresIn: ADMIN_MODE_TOKEN_TTL,
+  })
 }
 
 export function getRefreshCookieOptions(): CookieOptions {
@@ -81,6 +91,14 @@ export function verifyRefreshToken(token: string): TokenClaims {
   const claims = parseToken(token)
   if (claims.type !== 'refresh') {
     throw new Error('Invalid refresh token')
+  }
+  return claims
+}
+
+export function verifyAdminModeToken(token: string): TokenClaims {
+  const claims = parseToken(token)
+  if (claims.type !== 'admin') {
+    throw new Error('Invalid admin mode token')
   }
   return claims
 }
