@@ -25,7 +25,7 @@ services:
     command: sh -c "npm run migrate:up --workspace api && npm run dev --workspace api"
     environment:
       DATABASE_URL: postgresql://chorgie:chorgie@postgres:5432/chorgie
-      JWT_SECRET: local-dev-jwt-secret-change-me
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
       CORS_ORIGIN: http://localhost:5173
       PORT: 3000
     ports:
@@ -38,6 +38,17 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   web:
     build:
@@ -57,7 +68,7 @@ services:
       - web-node-modules:/workspace/web/node_modules
     depends_on:
       api:
-        condition: service_started
+        condition: service_healthy
 
 volumes:
   postgres-data:

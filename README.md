@@ -2,6 +2,12 @@
 
 ## Local Docker development
 
+Create a local `.env` file with a JWT secret before starting the stack:
+
+```bash
+echo "JWT_SECRET=$(openssl rand -hex 32)" > .env
+```
+
 Run the full local stack with Docker Compose:
 
 ```bash

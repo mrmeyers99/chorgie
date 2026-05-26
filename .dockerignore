@@ -5,3 +5,5 @@ api/dist
 web/dist
 .git
 .github
+.env
+.env.*
