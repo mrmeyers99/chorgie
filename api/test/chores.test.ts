@@ -1,0 +1,241 @@
+import request from 'supertest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+import jwt from 'jsonwebtoken'
+import { app } from '../src/app.js'
+
+vi.mock('../src/db.js', () => {
+  const mockClient = {
+    query: vi.fn(),
+    release: vi.fn(),
+  }
+  return {
+    pool: {
+      connect: vi.fn(() => Promise.resolve(mockClient)),
+      query: vi.fn(),
+    },
+    connectToDatabase: vi.fn(),
+    _mockClient: mockClient,
+  }
+})
+
+process.env.JWT_SECRET = 'test-secret-for-unit-tests'
+
+async function getMockClient() {
+  const mod = await import('../src/db.js')
+  // @ts-expect-error accessing internal mock
+  return mod._mockClient as {
+    query: ReturnType<typeof vi.fn>
+    release: ReturnType<typeof vi.fn>
+  }
+}
+
+function makeAccessToken() {
+  return jwt.sign(
+    { sub: 'user-uuid', householdId: 'household-uuid' },
+    process.env.JWT_SECRET as string,
+    { expiresIn: '15m' }
+  )
+}
+
+function makeAdminModeToken() {
+  return jwt.sign(
+    { sub: 'user-uuid', householdId: 'household-uuid', type: 'admin' },
+    process.env.JWT_SECRET as string,
+    { expiresIn: '10m' }
+  )
+}
+
+const sampleChore = {
+  id: 'chore-1',
+  household_id: 'household-uuid',
+  enc_name: 'enc-take-out-trash',
+  enc_description: null,
+  reward_amount: '2.50',
+  recurrence_type: 'fixed',
+  enc_recurrence_rule: 'enc-weekly-monday',
+  assigned_to: null,
+  is_active: true,
+  created_at: '2026-05-25T00:00:00.000Z',
+}
+
+describe('GET /chores', () => {
+  beforeEach(async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockReset()
+    mockClient.release.mockReset()
+  })
+
+  it('returns chore definitions for the household', async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockResolvedValueOnce({ rows: [sampleChore] })
+
+    const res = await request(app)
+      .get('/chores')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+    expect(res.status).toBe(200)
+    expect(res.body.chores).toHaveLength(1)
+    expect(res.body.chores[0].id).toBe('chore-1')
+  })
+
+  it('requires authentication', async () => {
+    const res = await request(app).get('/chores')
+    expect(res.status).toBe(401)
+  })
+})
+
+describe('POST /chores', () => {
+  beforeEach(async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockReset()
+    mockClient.release.mockReset()
+  })
+
+  it('requires admin mode token', async () => {
+    const res = await request(app)
+      .post('/chores')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .send({ enc_name: 'enc-name', reward_amount: 2.5, recurrence_type: 'one-time' })
+
+    expect(res.status).toBe(403)
+  })
+
+  it('creates a chore definition with admin mode', async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockResolvedValueOnce({ rows: [sampleChore] })
+
+    const res = await request(app)
+      .post('/chores')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .set('x-admin-mode-token', makeAdminModeToken())
+      .send({ enc_name: 'enc-take-out-trash', reward_amount: 2.5, recurrence_type: 'fixed' })
+
+    expect(res.status).toBe(201)
+    expect(res.body.id).toBe('chore-1')
+    expect(res.body.recurrence_type).toBe('fixed')
+  })
+
+  it('rejects an invalid recurrence_type', async () => {
+    const res = await request(app)
+      .post('/chores')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .set('x-admin-mode-token', makeAdminModeToken())
+      .send({ enc_name: 'enc-name', reward_amount: 2.5, recurrence_type: 'bad-type' })
+
+    expect(res.status).toBe(400)
+  })
+
+  it('rejects a negative reward_amount', async () => {
+    const res = await request(app)
+      .post('/chores')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .set('x-admin-mode-token', makeAdminModeToken())
+      .send({ enc_name: 'enc-name', reward_amount: -1, recurrence_type: 'one-time' })
+
+    expect(res.status).toBe(400)
+  })
+
+  it('rejects missing required fields', async () => {
+    const res = await request(app)
+      .post('/chores')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .set('x-admin-mode-token', makeAdminModeToken())
+      .send({ enc_name: 'enc-name' })
+
+    expect(res.status).toBe(400)
+  })
+})
+
+describe('PATCH /chores/:id', () => {
+  beforeEach(async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockReset()
+    mockClient.release.mockReset()
+  })
+
+  it('updates a chore definition with admin mode', async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockResolvedValueOnce({
+      rows: [{ ...sampleChore, enc_name: 'enc-updated-name' }],
+    })
+
+    const res = await request(app)
+      .patch('/chores/chore-1')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .set('x-admin-mode-token', makeAdminModeToken())
+      .send({ enc_name: 'enc-updated-name' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.enc_name).toBe('enc-updated-name')
+  })
+
+  it('returns 404 when chore does not exist', async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockResolvedValueOnce({ rows: [] })
+
+    const res = await request(app)
+      .patch('/chores/nonexistent')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .set('x-admin-mode-token', makeAdminModeToken())
+      .send({ enc_name: 'enc-name' })
+
+    expect(res.status).toBe(404)
+  })
+
+  it('requires admin mode token', async () => {
+    const res = await request(app)
+      .patch('/chores/chore-1')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .send({ enc_name: 'enc-name' })
+
+    expect(res.status).toBe(403)
+  })
+
+  it('rejects an empty update body', async () => {
+    const res = await request(app)
+      .patch('/chores/chore-1')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .set('x-admin-mode-token', makeAdminModeToken())
+      .send({})
+
+    expect(res.status).toBe(400)
+  })
+})
+
+describe('DELETE /chores/:id', () => {
+  beforeEach(async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockReset()
+    mockClient.release.mockReset()
+  })
+
+  it('soft-deletes a chore definition with admin mode', async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockResolvedValueOnce({ rows: [{ id: 'chore-1' }] })
+
+    const res = await request(app)
+      .delete('/chores/chore-1')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .set('x-admin-mode-token', makeAdminModeToken())
+
+    expect(res.status).toBe(204)
+  })
+
+  it('returns 404 when chore does not exist', async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockResolvedValueOnce({ rows: [] })
+
+    const res = await request(app)
+      .delete('/chores/nonexistent')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .set('x-admin-mode-token', makeAdminModeToken())
+
+    expect(res.status).toBe(404)
+  })
+
+  it('requires admin mode token', async () => {
+    const res = await request(app)
+      .delete('/chores/chore-1')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+    expect(res.status).toBe(403)
+  })
+})

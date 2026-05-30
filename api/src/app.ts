@@ -7,6 +7,7 @@ import { householdRouter } from './routes/household.js'
 import { requireAuth } from './middleware/auth.js'
 import { adminRouter } from './routes/admin.js'
 import { kidsRouter } from './routes/kids.js'
+import { choresRouter } from './routes/chores.js'
 
 export const app = express()
 
@@ -61,3 +62,4 @@ app.use('/auth', authLimiter, authRouter)
 app.use('/admin', adminLimiter, requireAuth, adminRouter)
 app.use('/household', requireAuth, householdRouter)
 app.use('/kids', requireAuth, kidsRouter)
+app.use('/chores', requireAuth, choresRouter)
