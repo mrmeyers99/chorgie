@@ -31,10 +31,11 @@ function getAdminModeHeader() {
 }
 
 async function request(path, options = {}) {
+  const { headers: optionHeaders, ...restOptions } = options
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: { 'Content-Type': 'application/json', ...optionHeaders },
     credentials: 'include',
-    ...options,
+    ...restOptions,
   })
 
   const body = await res.json().catch(() => ({}))
