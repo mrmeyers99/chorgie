@@ -66,6 +66,18 @@ function Home() {
     }
   }
 
+  async function handleExitAdminMode(e) {
+    e.preventDefault()
+    setStatus('')
+    try {
+      await api.exitAdminMode()
+      sessionStorage.removeItem('adminModeToken')
+      setStatus('Admin mode disabled.')
+    } catch (err) {
+      setStatus(err.message ?? 'Unable to exit admin mode.')
+    }
+  }
+
   async function handleLogout(e) {
     e.preventDefault()
     await api.logout().catch(() => null)
@@ -109,6 +121,11 @@ function Home() {
       ) : (
         <form onSubmit={handleCreateKid} style={{ marginTop: 16 }}>
           <h2>Add kid profile</h2>
+          <p>
+            <a href="/#exit-admin-mode" onClick={handleExitAdminMode}>
+              Exit Admin Mode
+            </a>
+          </p>
           <div>
             <input
               value={kidName}
