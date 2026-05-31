@@ -146,6 +146,12 @@
   color: #fff;
 }
 
+.btnSecondary {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border: 1.5px solid var(--accent-border);
+}
+
 .btnGhost {
   background: var(--accent-bg);
   color: var(--accent);
