@@ -51,6 +51,20 @@ type ChoreRow = {
   created_at: string
 }
 
+async function assignedKidExistsInHousehold(
+  client: { query: (text: string, values: unknown[]) => Promise<{ rows: Array<unknown> }> },
+  assignedTo: string,
+  householdId: string
+) {
+  const result = await client.query(
+    `SELECT 1
+     FROM kid_profiles
+     WHERE id = $1 AND household_id = $2`,
+    [assignedTo, householdId]
+  )
+  return Boolean(result.rows[0])
+}
+
 choresRouter.get('/', async (_req, res) => {
   const householdId = res.locals.auth?.householdId as string | undefined
   if (!householdId) {
@@ -98,6 +112,14 @@ choresRouter.post('/', requireAdminMode, async (req, res) => {
 
   const client = await pool.connect()
   try {
+    if (assigned_to) {
+      const exists = await assignedKidExistsInHousehold(client, assigned_to, householdId)
+      if (!exists) {
+        res.status(400).json({ error: 'assigned_to must reference a kid in this household.' })
+        return
+      }
+    }
+
     const result = await client.query<ChoreRow>(
       `INSERT INTO chore_definitions
          (household_id, enc_name, enc_description, reward_amount, recurrence_type, enc_recurrence_rule, assigned_to)
@@ -145,6 +167,14 @@ choresRouter.patch('/:id', requireAdminMode, async (req, res) => {
 
   const client = await pool.connect()
   try {
+    if (assigned_to) {
+      const exists = await assignedKidExistsInHousehold(client, assigned_to, householdId)
+      if (!exists) {
+        res.status(400).json({ error: 'assigned_to must reference a kid in this household.' })
+        return
+      }
+    }
+
     const result = await client.query<ChoreRow>(
       `UPDATE chore_definitions
        SET enc_name             = COALESCE($3, enc_name),

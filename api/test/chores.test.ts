@@ -143,6 +143,25 @@ describe('POST /chores', () => {
 
     expect(res.status).toBe(400)
   })
+
+  it('rejects assigned_to from a different household', async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockResolvedValueOnce({ rows: [] })
+
+    const res = await request(app)
+      .post('/chores')
+      .set('Authorization', 'Bearer ' + makeAccessToken())
+      .set('x-admin-mode-token', makeAdminModeToken())
+      .send({
+        enc_name: 'enc-name',
+        reward_amount: 2.5,
+        recurrence_type: 'one-time',
+        assigned_to: '11111111-1111-4111-8111-111111111111',
+      })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('assigned_to must reference a kid in this household.')
+  })
 })
 
 describe('PATCH /chores/:id', () => {
@@ -198,6 +217,20 @@ describe('PATCH /chores/:id', () => {
       .send({})
 
     expect(res.status).toBe(400)
+  })
+
+  it('rejects assigned_to from a different household', async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockResolvedValueOnce({ rows: [] })
+
+    const res = await request(app)
+      .patch('/chores/chore-1')
+      .set('Authorization', 'Bearer ' + makeAccessToken())
+      .set('x-admin-mode-token', makeAdminModeToken())
+      .send({ assigned_to: '11111111-1111-4111-8111-111111111111' })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('assigned_to must reference a kid in this household.')
   })
 })
 
