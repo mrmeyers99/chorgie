@@ -4,6 +4,14 @@ import Register from './pages/Register.jsx'
 import Login from './pages/Login.jsx'
 import ChoreAdmin from './pages/ChoreAdmin.jsx'
 import { api } from './lib/api.js'
+import styles from './App.module.css'
+
+const AVATAR_EMOJI = {
+  'corgi-1': '🐕',
+  'corgi-2': '🐶',
+  'corgi-3': '🦮',
+  'corgi-4': '🐾',
+}
 
 function Home() {
   const navigate = useNavigate()
@@ -105,83 +113,114 @@ function Home() {
   }
 
   return (
-    <section style={{ padding: '40px 24px', textAlign: 'center' }}>
-      <h1>Chorgie</h1>
-      <p>Welcome, {userEmail}!</p>
-      <p>
-        <a href="/login" onClick={handleLogout}>
-          Log out
-        </a>
-      </p>
-      {status ? <p role="status">{status}</p> : null}
+    <main className={styles.page}>
+      <header className={styles.appHeader}>
+        <h1 className={styles.appTitle}>🐾 Chorgie</h1>
+        <div className={styles.topActions}>
+          <span className={styles.appSubtitle}>Welcome, {userEmail}</span>
+          <a href="/login" onClick={handleLogout} className={styles.btnGhost}>
+            Log out
+          </a>
+        </div>
+      </header>
 
-      {!adminModeToken ? (
-        <form onSubmit={handleEnterAdminMode} noValidate style={{ marginTop: 16 }}>
-          <label htmlFor="pin">Enter admin PIN</label>
-          <br />
-          <input
-            id="pin"
-            type="password"
-            value={pin}
-            onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 8))}
-            inputMode="numeric"
-            pattern="[0-9]{4,8}"
-            minLength={4}
-            maxLength={8}
-            required
-          />
-          <button type="submit" style={{ marginLeft: 8 }}>
-            Enter Admin Mode
-          </button>
-        </form>
-      ) : (
-        <form onSubmit={handleCreateKid} style={{ marginTop: 16 }}>
-          <h2>Add kid profile</h2>
-          <p>
-            <Link to="/chores">Manage chores</Link>
-          </p>
-          <p>
-            <a href="/#exit-admin-mode" onClick={handleExitAdminMode}>
-              Exit Admin Mode
-            </a>
-          </p>
-          <div>
-            <input
-              value={kidName}
-              onChange={(e) => setKidName(e.target.value)}
-              placeholder="Kid display name"
-              required
-            />
-          </div>
-          <div style={{ marginTop: 8 }}>
-            <select value={avatarId} onChange={(e) => setAvatarId(e.target.value)}>
-              <option value="corgi-1">Corgi 1</option>
-              <option value="corgi-2">Corgi 2</option>
-              <option value="corgi-3">Corgi 3</option>
-              <option value="corgi-4">Corgi 4</option>
-            </select>
-            <button type="submit" style={{ marginLeft: 8 }}>
-              Add Kid
-            </button>
-          </div>
-        </form>
-      )}
+      {status ? <p role="status" className={styles.statusMsg}>{status}</p> : null}
 
-      <div style={{ marginTop: 24 }}>
-        <h2>Kid profiles</h2>
+      <div className={styles.adminCard}>
+        {!adminModeToken ? (
+          <form onSubmit={handleEnterAdminMode} noValidate>
+            <h2>Admin Mode</h2>
+            <div className={styles.formRow}>
+              <label htmlFor="pin">Enter admin PIN</label>
+              <input
+                id="pin"
+                type="password"
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                inputMode="numeric"
+                pattern="[0-9]{4,8}"
+                minLength={4}
+                maxLength={8}
+                placeholder="4–8 digit PIN"
+                required
+              />
+            </div>
+            <div className={styles.formActions}>
+              <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
+                Enter Admin Mode
+              </button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <h2>Admin Mode Active 🔓</h2>
+            <div className={styles.adminLinks}>
+              <Link to="/chores" className={`${styles.btn} ${styles.btnSecondary}`}>
+                Manage chores
+              </Link>
+              <a
+                href="/#exit-admin-mode"
+                onClick={handleExitAdminMode}
+                className={`${styles.btn} ${styles.btnGhost}`}
+              >
+                Exit Admin Mode
+              </a>
+            </div>
+
+            <form onSubmit={handleCreateKid}>
+              <h2>Add kid profile</h2>
+              <div className={styles.formRow}>
+                <label htmlFor="kidName">Display name</label>
+                <input
+                  id="kidName"
+                  value={kidName}
+                  onChange={(e) => setKidName(e.target.value)}
+                  placeholder="Kid's name"
+                  required
+                />
+              </div>
+              <div className={styles.formRow}>
+                <label htmlFor="avatarId">Avatar</label>
+                <select
+                  id="avatarId"
+                  value={avatarId}
+                  onChange={(e) => setAvatarId(e.target.value)}
+                >
+                  <option value="corgi-1">🐕 Corgi 1</option>
+                  <option value="corgi-2">🐶 Corgi 2</option>
+                  <option value="corgi-3">🦮 Corgi 3</option>
+                  <option value="corgi-4">🐾 Corgi 4</option>
+                </select>
+              </div>
+              <div className={styles.formActions}>
+                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
+                  Add Kid
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+      </div>
+
+      <div>
+        <p className={styles.sectionTitle}>
+          {kids.length ? 'Who are you?' : 'Kid Profiles'}
+        </p>
         {loadingKids ? (
-          <p>Loading kids…</p>
+          <p className={styles.emptyState}>Loading…</p>
         ) : kids.length ? (
-          <ul style={{ listStyle: 'none', padding: 0 }}>
+          <ul className={styles.kidGrid}>
             {kids.map((kid) => (
-              <li key={kid.id} style={{ opacity: kid.is_active === false ? 0.5 : 1 }}>
-                {kid.enc_display_name} ({kid.avatar_id})
-                {kid.is_active === false && ' [inactive]'}
+              <li key={kid.id} className={`${styles.kidCard}${kid.is_active === false ? ` ${styles.kidCardInactive}` : ''}`}>
+                <span className={styles.kidAvatar}>
+                  {AVATAR_EMOJI[kid.avatar_id] ?? '🐾'}
+                </span>
+                <span className={styles.kidName}>{kid.enc_display_name}</span>
                 {adminModeToken && kid.is_active !== false && (
                   <button
                     type="button"
                     onClick={() => void handleDeleteKid(kid.id)}
-                    style={{ marginLeft: 8 }}
+                    className={`${styles.btn} ${styles.btnDanger}`}
                   >
                     Delete
                   </button>
@@ -190,10 +229,12 @@ function Home() {
             ))}
           </ul>
         ) : (
-          <p>No kid profiles yet.</p>
+          <p className={styles.emptyState}>
+            No kid profiles yet. Enter admin mode to add one.
+          </p>
         )}
       </div>
-    </section>
+    </main>
   )
 }
 
