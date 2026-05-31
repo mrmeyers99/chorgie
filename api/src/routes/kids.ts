@@ -98,6 +98,35 @@ kidsRouter.post('/', requireAdminMode, async (req, res) => {
   }
 })
 
+kidsRouter.delete('/:id', requireAdminMode, async (req, res) => {
+  const householdId = res.locals.auth?.householdId as string | undefined
+  if (!householdId) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+
+  const { id } = req.params
+  const client = await pool.connect()
+  try {
+    const result = await client.query<{ id: string }>(
+      `UPDATE kid_profiles
+       SET is_active = false
+       WHERE id = $1 AND household_id = $2
+       RETURNING id`,
+      [id, householdId]
+    )
+
+    if (!result.rows[0]) {
+      res.status(404).json({ error: 'Kid profile not found.' })
+      return
+    }
+
+    res.status(204).send()
+  } finally {
+    client.release()
+  }
+})
+
 kidsRouter.patch('/:id', requireAdminMode, async (req, res) => {
   const householdId = res.locals.auth?.householdId as string | undefined
   if (!householdId) {

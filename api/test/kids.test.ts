@@ -180,6 +180,46 @@ describe('POST /kids', () => {
   })
 })
 
+describe('DELETE /kids/:id', () => {
+  beforeEach(async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockReset()
+    mockClient.release.mockReset()
+  })
+
+  it('requires admin mode token', async () => {
+    const res = await request(app)
+      .delete('/kids/kid-1')
+      .set('Authorization', 'Bearer ' + makeAccessToken())
+
+    expect(res.status).toBe(403)
+  })
+
+  it('deactivates a kid profile with admin mode', async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockResolvedValueOnce({ rows: [{ id: 'kid-1' }] })
+
+    const res = await request(app)
+      .delete('/kids/kid-1')
+      .set('Authorization', 'Bearer ' + makeAccessToken())
+      .set('x-admin-mode-token', makeAdminModeToken())
+
+    expect(res.status).toBe(204)
+  })
+
+  it('returns 404 when kid not found', async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockResolvedValueOnce({ rows: [] })
+
+    const res = await request(app)
+      .delete('/kids/nonexistent')
+      .set('Authorization', 'Bearer ' + makeAccessToken())
+      .set('x-admin-mode-token', makeAdminModeToken())
+
+    expect(res.status).toBe(404)
+  })
+})
+
 describe('PATCH /kids/:id', () => {
   beforeEach(async () => {
     const mockClient = await getMockClient()
