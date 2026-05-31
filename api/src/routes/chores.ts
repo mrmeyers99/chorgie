@@ -5,7 +5,7 @@ import { requireAdminMode } from '../middleware/admin.js'
 
 export const choresRouter = Router()
 
-const RECURRENCE_TYPES = ['one-time', 'fixed', 'completion-based'] as const
+const RECURRENCE_TYPES = ['ad-hoc', 'completion-based'] as const
 
 const createChoreSchema = z.object({
   enc_name: z.string().min(1),
@@ -137,7 +137,6 @@ choresRouter.get('/', async (_req, res) => {
               lc.completed_at AS last_completed_at,
               CASE
                 WHEN cd.is_active = false THEN false
-                WHEN cd.recurrence_type = 'one-time' THEN lc.completed_at IS NULL
                 WHEN cd.recurrence_type = 'completion-based'
                   THEN lc.completed_at IS NULL OR (
                     CASE
@@ -157,7 +156,7 @@ choresRouter.get('/', async (_req, res) => {
          LIMIT 1
        ) lc ON true
        WHERE cd.household_id = $1
-       ORDER BY cd.created_at ASC`,
+       ORDER BY lc.completed_at DESC NULLS LAST, cd.created_at ASC`,
       [householdId]
     )
 

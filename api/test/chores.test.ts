@@ -51,7 +51,7 @@ const sampleChore = {
   enc_name: 'enc-take-out-trash',
   enc_description: null,
   reward_amount: '2.50',
-  recurrence_type: 'fixed',
+  recurrence_type: 'ad-hoc',
   enc_recurrence_rule: 'enc-weekly-monday',
   eligible_kids: [],
   is_active: true,
@@ -96,7 +96,7 @@ describe('POST /chores', () => {
     const res = await request(app)
       .post('/chores')
       .set('Authorization', `Bearer ${makeAccessToken()}`)
-      .send({ enc_name: 'enc-name', reward_amount: 2.5, recurrence_type: 'one-time' })
+      .send({ enc_name: 'enc-name', reward_amount: 2.5, recurrence_type: 'ad-hoc' })
 
     expect(res.status).toBe(403)
   })
@@ -112,11 +112,11 @@ describe('POST /chores', () => {
       .post('/chores')
       .set('Authorization', `Bearer ${makeAccessToken()}`)
       .set('x-admin-mode-token', makeAdminModeToken())
-      .send({ enc_name: 'enc-take-out-trash', reward_amount: 2.5, recurrence_type: 'fixed' })
+      .send({ enc_name: 'enc-take-out-trash', reward_amount: 2.5, recurrence_type: 'ad-hoc' })
 
     expect(res.status).toBe(201)
     expect(res.body.id).toBe('chore-1')
-    expect(res.body.recurrence_type).toBe('fixed')
+    expect(res.body.recurrence_type).toBe('ad-hoc')
   })
 
   it('rejects an invalid recurrence_type', async () => {
@@ -134,7 +134,7 @@ describe('POST /chores', () => {
       .post('/chores')
       .set('Authorization', `Bearer ${makeAccessToken()}`)
       .set('x-admin-mode-token', makeAdminModeToken())
-      .send({ enc_name: 'enc-name', reward_amount: -1, recurrence_type: 'one-time' })
+      .send({ enc_name: 'enc-name', reward_amount: -1, recurrence_type: 'ad-hoc' })
 
     expect(res.status).toBe(400)
   })
@@ -160,7 +160,7 @@ describe('POST /chores', () => {
       .send({
         enc_name: 'enc-name',
         reward_amount: 2.5,
-        recurrence_type: 'one-time',
+        recurrence_type: 'ad-hoc',
         eligible_kids: ['11111111-1111-4111-8111-111111111111'],
       })
 

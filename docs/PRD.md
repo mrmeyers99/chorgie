@@ -17,7 +17,7 @@ The product is intentionally simple in scope for the MVP: no push notifications,
 ### Goals
 - Give households a single, lightweight place to assign, track, and reward chores.
 - Keep personal household data private — the server stores only ciphertext; all encryption/decryption happens client-side.
-- Support recurring chores with calendar-based or completion-based cadences.
+- Support chores with one-time, ad-hoc, or completion-based cadences.
 - Make the kid UX dead-simple (tap your avatar → see your chores → tap done).
 - Give parents a PIN-protected admin mode to manage everything without exposing admin controls to kids.
 
@@ -106,7 +106,10 @@ Not in scope for v1 — admin password change will require re-encryption of all 
   - Name (encrypted)
   - Description (optional, encrypted)
   - Reward amount (decimal, stored in household currency)
-  - Recurrence type: **one-time**, **fixed cadence** (e.g., every Monday), or **completion-based** (next occurrence N days/weeks after marked done)
+  - Recurrence type: **one-time**, **ad-hoc**, or **completion-based**
+    - **One-time:** disappears from the available list after completion.
+    - **Ad-hoc:** becomes inactive after completion and remains visible in admin controls so it can be reactivated later.
+    - **Completion-based:** reappears after the configured repeat interval.
   - Assigned-to: one kid, multiple kids, or "any kid"
 - The client computes the next due date from the recurrence rule and timezone; only the computed `due_at` timestamp is stored server-side.
 
@@ -115,7 +118,8 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 - A kid sees chores assigned to them (or to "any kid") that are currently due.
 - Tapping **"Done!"** triggers an optimistic update and sends a completion record to the API.
 - **Concurrency handling:** if another kid (or the same kid on another device) already marked the chore done, the API returns a `409 Conflict` and the client shows a friendly "Oops, someone already did this one!" message and refreshes.
-- Completed chores move to a "Done today" section and no longer appear in the available list.
+- Completed one-time chores move to a "Done today" section and no longer appear in the available list.
+- Completed ad-hoc chores move to a "Done today" section, then become inactive until an admin reactivates them.
 - A kid can **undo** a completion (tap **"Undo"** on a "Done today" chore) to un-mark it, returning it to the available list. This is intended for accidental taps; undo is blocked once the chore instance has been marked paid.
 
 ### 6.6 Balance Tracking
