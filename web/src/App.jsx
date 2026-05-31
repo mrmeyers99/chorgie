@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom'
 import Register from './pages/Register.jsx'
 import Login from './pages/Login.jsx'
+import ChoreAdmin from './pages/ChoreAdmin.jsx'
 import { api } from './lib/api.js'
 
 function Home() {
@@ -122,6 +123,9 @@ function Home() {
         <form onSubmit={handleCreateKid} style={{ marginTop: 16 }}>
           <h2>Add kid profile</h2>
           <p>
+            <Link to="/chores">Manage chores</Link>
+          </p>
+          <p>
             <a href="/#exit-admin-mode" onClick={handleExitAdminMode}>
               Exit Admin Mode
             </a>
@@ -177,6 +181,7 @@ function App() {
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/chores" element={<ChoreAdmin />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
