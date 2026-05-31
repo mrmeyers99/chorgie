@@ -5,7 +5,7 @@ import { requireAdminMode } from '../middleware/admin.js'
 
 export const choresRouter = Router()
 
-const RECURRENCE_TYPES = ['one-time', 'fixed', 'completion-based'] as const
+const RECURRENCE_TYPES = ['one-time', 'ad-hoc', 'completion-based'] as const
 
 const createChoreSchema = z.object({
   enc_name: z.string().min(1),

@@ -3,7 +3,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { api } from '../lib/api.js'
 import styles from './ChoreAdmin.module.css'
 
-const RECURRENCE_TYPES = ['one-time', 'fixed', 'completion-based']
+const RECURRENCE_TYPES = ['one-time', 'ad-hoc', 'completion-based']
 
 const emptyForm = {
   enc_name: '',
@@ -65,8 +65,8 @@ export default function ChoreAdmin() {
     setForm((prev) => ({
       ...prev,
       [name]: value,
-      // Clear the recurrence rule when switching to one-time
-      ...(name === 'recurrence_type' && value === 'one-time'
+      // Clear the recurrence rule when switching to recurrence types that do not use it
+      ...(name === 'recurrence_type' && (value === 'one-time' || value === 'ad-hoc')
         ? { enc_recurrence_rule: '' }
         : {}),
     }))
@@ -147,6 +147,17 @@ export default function ChoreAdmin() {
     } catch (err) {
       setStatus(err.message ?? 'Failed to deactivate chore.')
     }
+
+    async function handleReactivate(id) {
+      setStatus('')
+      try {
+        await api.updateChore(id, { is_active: true })
+        setStatus('Chore activated.')
+        await loadChores()
+      } catch (err) {
+        setStatus(err.message ?? 'Failed to activate chore.')
+      }
+    }
   }
 
   return (
@@ -215,7 +226,7 @@ export default function ChoreAdmin() {
             </select>
           </div>
 
-          {(form.recurrence_type === 'completion-based' || form.recurrence_type === 'fixed') && (
+          {form.recurrence_type === 'completion-based' && (
             <div className={styles.formRow}>
               <label htmlFor="enc_recurrence_rule">Repeat every (days)</label>
               <input
@@ -309,13 +320,21 @@ export default function ChoreAdmin() {
                 >
                   Edit
                 </button>
-                {chore.is_active !== false && (
+                {chore.is_active !== false ? (
                   <button
                     type="button"
                     onClick={() => handleDeactivate(chore.id)}
                     className={`${styles.btn} ${styles.btnDanger}`}
                   >
                     Deactivate
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleReactivate(chore.id)}
+                    className={`${styles.btn} ${styles.btnSecondary}`}
+                  >
+                    Activate
                   </button>
                 )}
               </div>
