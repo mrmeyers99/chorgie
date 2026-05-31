@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { api } from '../lib/api.js'
+import styles from './ChoreAdmin.module.css'
 
 const RECURRENCE_TYPES = ['one-time', 'fixed', 'completion-based']
 
@@ -149,159 +150,179 @@ export default function ChoreAdmin() {
   }
 
   return (
-    <section style={{ padding: '40px 24px', maxWidth: 640, margin: '0 auto' }}>
-      <h1>Chore Admin</h1>
-      <p>
-        <Link to="/">← Back to home</Link>
-      </p>
-      {status ? <p role="status">{status}</p> : null}
+    <main className={styles.page}>
+      <h1 className={styles.pageTitle}>🐾 Chore Admin</h1>
+      <Link to="/" className={styles.backLink}>
+        ← Back to home
+      </Link>
 
-      <h2>{editingId ? 'Edit Chore' : 'Add Chore'}</h2>
-      <form onSubmit={handleSubmit} noValidate>
-        <div>
-          <label htmlFor="enc_name">Name</label>
-          <br />
-          <input
-            id="enc_name"
-            name="enc_name"
-            value={form.enc_name}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        <div style={{ marginTop: 8 }}>
-          <label htmlFor="enc_description">Description</label>
-          <br />
-          <input
-            id="enc_description"
-            name="enc_description"
-            value={form.enc_description}
-            onChange={handleChange}
-          />
-        </div>
-        <div style={{ marginTop: 8 }}>
-          <label htmlFor="reward_amount">Reward amount</label>
-          <br />
-          <input
-            id="reward_amount"
-            name="reward_amount"
-            type="number"
-            min="0"
-            step="any"
-            value={form.reward_amount}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        <div style={{ marginTop: 8 }}>
-          <label htmlFor="recurrence_type">Recurrence type</label>
-          <br />
-          <select
-            id="recurrence_type"
-            name="recurrence_type"
-            value={form.recurrence_type}
-            onChange={handleChange}
-          >
-            {RECURRENCE_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </div>
-        {(form.recurrence_type === 'completion-based' || form.recurrence_type === 'fixed') && (
-          <div style={{ marginTop: 8 }}>
-            <label htmlFor="enc_recurrence_rule">Repeat every (days)</label>
-            <br />
+      {status ? <p role="status" className={styles.statusMsg}>{status}</p> : null}
+
+      <div className={styles.card}>
+        <h2>{editingId ? 'Edit Chore' : 'Add Chore'}</h2>
+        <form onSubmit={handleSubmit} noValidate>
+          <div className={styles.formRow}>
+            <label htmlFor="enc_name">Name</label>
             <input
-              id="enc_recurrence_rule"
-              name="enc_recurrence_rule"
-              type="number"
-              min="1"
-              step="1"
-              value={form.enc_recurrence_rule}
+              id="enc_name"
+              name="enc_name"
+              value={form.enc_name}
               onChange={handleChange}
+              placeholder="e.g. Take out the trash"
               required
             />
           </div>
-        )}
-        <div style={{ marginTop: 8 }}>
-          <label>Eligible kids</label>
-          <div style={{ marginTop: 4 }}>
-            {kids.length === 0 ? (
-              <span style={{ color: '#888' }}>No kids added yet.</span>
-            ) : (
-              <>
-                <label style={{ display: 'block', marginBottom: 4 }}>
-                  <input
-                    type="checkbox"
-                    checked={form.eligible_kids.length === kids.length && kids.length > 0}
-                    onChange={handleSelectAllKids}
-                    style={{ marginRight: 6 }}
-                  />
-                  Select all
-                </label>
-                {kids.map((kid) => (
-                  <label key={kid.id} style={{ display: 'block', marginBottom: 2 }}>
+
+          <div className={styles.formRow}>
+            <label htmlFor="enc_description">Description (optional)</label>
+            <input
+              id="enc_description"
+              name="enc_description"
+              value={form.enc_description}
+              onChange={handleChange}
+              placeholder="Extra details…"
+            />
+          </div>
+
+          <div className={styles.formRow}>
+            <label htmlFor="reward_amount">Reward amount ($)</label>
+            <input
+              id="reward_amount"
+              name="reward_amount"
+              type="number"
+              min="0"
+              step="any"
+              value={form.reward_amount}
+              onChange={handleChange}
+              placeholder="0.00"
+              required
+            />
+          </div>
+
+          <div className={styles.formRow}>
+            <label htmlFor="recurrence_type">Recurrence</label>
+            <select
+              id="recurrence_type"
+              name="recurrence_type"
+              value={form.recurrence_type}
+              onChange={handleChange}
+            >
+              {RECURRENCE_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {(form.recurrence_type === 'completion-based' || form.recurrence_type === 'fixed') && (
+            <div className={styles.formRow}>
+              <label htmlFor="enc_recurrence_rule">Repeat every (days)</label>
+              <input
+                id="enc_recurrence_rule"
+                name="enc_recurrence_rule"
+                type="number"
+                min="1"
+                step="1"
+                value={form.enc_recurrence_rule}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          )}
+
+          <div className={styles.formRow}>
+            <label>Eligible kids</label>
+            <div className={styles.checkboxGroup}>
+              {kids.length === 0 ? (
+                <span className={styles.emptyHint}>No kids added yet.</span>
+              ) : (
+                <>
+                  <label className={styles.checkboxLabel}>
                     <input
                       type="checkbox"
-                      checked={form.eligible_kids.includes(kid.id)}
-                      onChange={() => handleKidToggle(kid.id)}
-                      style={{ marginRight: 6 }}
+                      checked={form.eligible_kids.length === kids.length && kids.length > 0}
+                      onChange={handleSelectAllKids}
                     />
-                    {kid.enc_display_name}
+                    Select all
                   </label>
-                ))}
-              </>
+                  {kids.map((kid) => (
+                    <label key={kid.id} className={styles.checkboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={form.eligible_kids.includes(kid.id)}
+                        onChange={() => handleKidToggle(kid.id)}
+                      />
+                      {kid.enc_display_name}
+                    </label>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className={styles.formActions}>
+            <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
+              {editingId ? 'Save changes' : 'Add Chore'}
+            </button>
+            {editingId && (
+              <button
+                type="button"
+                onClick={cancelEdit}
+                className={`${styles.btn} ${styles.btnGhost}`}
+              >
+                Cancel
+              </button>
             )}
           </div>
-        </div>
-        <div style={{ marginTop: 12 }}>
-          <button type="submit">{editingId ? 'Save changes' : 'Add Chore'}</button>
-          {editingId && (
-            <button type="button" onClick={cancelEdit} style={{ marginLeft: 8 }}>
-              Cancel
-            </button>
-          )}
-        </div>
-      </form>
+        </form>
+      </div>
 
-      <h2 style={{ marginTop: 32 }}>Chores</h2>
+      <p className={styles.sectionTitle}>Chores</p>
       {loading ? (
-        <p>Loading…</p>
+        <p className={styles.loadingMsg}>Loading…</p>
       ) : chores.length === 0 ? (
-        <p>No chores yet.</p>
+        <p className={styles.loadingMsg}>No chores yet.</p>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0 }}>
+        <ul className={styles.list}>
           {chores.map((chore) => (
             <li
               key={chore.id}
-              style={{
-                borderBottom: '1px solid #ccc',
-                padding: '8px 0',
-                opacity: chore.is_active === false ? 0.5 : 1,
-              }}
+              className={`${styles.listItem}${chore.is_active === false ? ` ${styles.inactive}` : ''}`}
             >
-              <strong>{chore.enc_name}</strong> — ${chore.reward_amount} ({chore.recurrence_type})
-              {chore.is_active === false && ' [inactive]'}
-              <span style={{ marginLeft: 12 }}>
-                <button type="button" onClick={() => startEdit(chore)}>
+              <div className={styles.listItemInfo}>
+                <div className={styles.listItemName}>
+                  {chore.enc_name}
+                  {chore.is_active === false && (
+                    <span className={styles.inactiveBadge}>inactive</span>
+                  )}
+                </div>
+                <div className={styles.listItemMeta}>
+                  ${chore.reward_amount} · {chore.recurrence_type}
+                </div>
+              </div>
+              <div className={styles.listItemActions}>
+                <button
+                  type="button"
+                  onClick={() => startEdit(chore)}
+                  className={`${styles.btn} ${styles.btnGhost}`}
+                >
                   Edit
                 </button>
                 {chore.is_active !== false && (
                   <button
                     type="button"
                     onClick={() => handleDeactivate(chore.id)}
-                    style={{ marginLeft: 4 }}
+                    className={`${styles.btn} ${styles.btnDanger}`}
                   >
                     Deactivate
                   </button>
                 )}
-              </span>
+              </div>
             </li>
           ))}
         </ul>
       )}
-    </section>
+    </main>
   )
 }

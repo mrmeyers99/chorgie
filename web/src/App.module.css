@@ -1,5 +1,12 @@
-/* Legacy file – styles moved to App.module.css */
-
+/* Home page styles */
+.page {
+  padding: 40px 24px 60px;
+  max-width: 680px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+}
 
 .appHeader {
   margin-bottom: 32px;
@@ -141,7 +148,7 @@
 .btnGhost {
   background: transparent;
   color: var(--text);
-  padding: 9px 12px;
+  padding: 9px 4px;
 }
 
 .btnGhost:hover {
@@ -199,6 +206,24 @@
   font-weight: 700;
   color: var(--text-h);
   word-break: break-word;
+}
+
+.btnDanger {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1.5px solid #fca5a5;
+}
+
+@media (prefers-color-scheme: dark) {
+  .btnDanger {
+    background: rgba(185, 28, 28, 0.15);
+    color: #fca5a5;
+    border-color: rgba(185, 28, 28, 0.4);
+  }
+}
+
+.kidCardInactive {
+  opacity: 0.5;
 }
 
 .emptyState {
