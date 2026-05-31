@@ -47,17 +47,17 @@ function Home() {
     } finally {
       setLoadingKids(false)
     }
+  }
 
-    async function loadChores() {
-      setLoadingChores(true)
-      try {
-        const data = await api.getChores()
-        setChores(data.chores ?? [])
-      } catch (err) {
-        setStatus(err.message ?? 'Failed to load chores.')
-      } finally {
-        setLoadingChores(false)
-      }
+  async function loadChores() {
+    setLoadingChores(true)
+    try {
+      const data = await api.getChores()
+      setChores(data.chores ?? [])
+    } catch (err) {
+      setStatus(err.message ?? 'Failed to load chores.')
+    } finally {
+      setLoadingChores(false)
     }
   }
 
@@ -104,10 +104,10 @@ function Home() {
     } catch (err) {
       setStatus(err.message ?? 'Failed to deactivate kid.')
     }
+  }
 
-    function handleKidSelect(id) {
-      setSelectedKidId(id)
-    }
+  function handleKidSelect(id) {
+    setSelectedKidId(id)
   }
 
   async function handleExitAdminMode(e) {
