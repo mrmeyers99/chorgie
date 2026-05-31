@@ -50,6 +50,7 @@ type ChoreRow = {
   is_active: boolean
   is_available: boolean
   last_completed_at: string | null
+  override_available_until: string | null
   created_at: string
 }
 
@@ -62,6 +63,7 @@ type ChoreAvailabilityRow = {
   eligible_kids: string[]
   is_active: boolean
   last_completed_at: string | null
+  override_available_until: string | null
 }
 
 const completeChoreSchema = z.object({
@@ -81,7 +83,16 @@ function isChoreCurrentlyAvailable(chore: {
   recurrence_type: string
   enc_recurrence_rule: string | null
   last_completed_at: string | null
+  override_available_until: string | null
 }) {
+  // Check if there's an active override
+  if (chore.override_available_until) {
+    const overrideUntil = new Date(chore.override_available_until)
+    if (new Date() <= overrideUntil) {
+      return true
+    }
+  }
+
   if (!chore.last_completed_at) {
     return true
   }
@@ -129,7 +140,7 @@ choresRouter.get('/', async (_req, res) => {
   try {
     const result = await client.query<ChoreRow>(
       `SELECT cd.id, cd.household_id, cd.enc_name, cd.enc_description, cd.reward_amount,
-              cd.recurrence_type, cd.enc_recurrence_rule, cd.is_active, cd.created_at,
+              cd.recurrence_type, cd.enc_recurrence_rule, cd.is_active, cd.override_available_until, cd.created_at,
               COALESCE(
                 (SELECT ARRAY_AGG(cek.kid_id) FROM chore_eligible_kids cek WHERE cek.chore_id = cd.id),
                 '{}'
@@ -137,6 +148,7 @@ choresRouter.get('/', async (_req, res) => {
               lc.completed_at AS last_completed_at,
               CASE
                 WHEN cd.is_active = false THEN false
+                WHEN cd.override_available_until IS NOT NULL AND NOW() <= cd.override_available_until THEN true
                 WHEN cd.recurrence_type = 'completion-based'
                   THEN lc.completed_at IS NULL OR (
                     CASE
@@ -359,6 +371,85 @@ choresRouter.delete('/:id', requireAdminMode, async (req, res) => {
   }
 })
 
+choresRouter.post('/:id/override-availability', requireAdminMode, async (req, res) => {
+  const householdId = res.locals.auth?.householdId as string | undefined
+  if (!householdId) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+
+  const { id } = req.params
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+
+    const choreResult = await client.query<ChoreRow>(
+      `SELECT id, household_id, recurrence_type, enc_recurrence_rule, is_active, last_completed_at
+       FROM chore_definitions cd
+       LEFT JOIN LATERAL (
+         SELECT completed_at AS last_completed_at
+         FROM chore_completions
+         WHERE chore_id = cd.id
+         ORDER BY completed_at DESC
+         LIMIT 1
+       ) lc ON true
+       WHERE cd.id = $1 AND cd.household_id = $2
+       FOR UPDATE OF cd`,
+      [id, householdId]
+    )
+
+    const chore = choreResult.rows[0]
+    if (!chore) {
+      await client.query('ROLLBACK')
+      res.status(404).json({ error: 'Chore definition not found.' })
+      return
+    }
+
+    if (!chore.is_active) {
+      await client.query('ROLLBACK')
+      res.status(400).json({ error: 'Cannot override availability for inactive chores.' })
+      return
+    }
+
+    if (chore.recurrence_type !== 'completion-based') {
+      await client.query('ROLLBACK')
+      res.status(400).json({ error: 'Can only override availability for completion-based chores.' })
+      return
+    }
+
+    // Calculate when the chore would naturally become available again
+    const recurrenceDays = getRecurrenceDays(chore.enc_recurrence_rule)
+    if (!recurrenceDays || !chore.last_completed_at) {
+      await client.query('ROLLBACK')
+      res.status(400).json({ error: 'Cannot determine natural availability time for this chore.' })
+      return
+    }
+
+    const lastCompleted = new Date(chore.last_completed_at)
+    const naturalAvailableAt = new Date(lastCompleted.getTime() + recurrenceDays * 24 * 60 * 60 * 1000)
+
+    // Set override to expire when it would naturally become available
+    await client.query(
+      `UPDATE chore_definitions
+       SET override_available_until = $1
+       WHERE id = $2 AND household_id = $3`,
+      [naturalAvailableAt.toISOString(), id, householdId]
+    )
+
+    await client.query('COMMIT')
+    res.status(200).json({
+      message: 'Chore availability overridden.',
+      override_available_until: naturalAvailableAt.toISOString()
+    })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    throw err
+  } finally {
+    client.release()
+  }
+})
+
 choresRouter.post('/:id/complete', async (req, res) => {
   const householdId = res.locals.auth?.householdId as string | undefined
   if (!householdId) {
@@ -399,6 +490,7 @@ choresRouter.post('/:id/complete', async (req, res) => {
 
     const choreResult = await client.query<ChoreAvailabilityRow>(
       `SELECT cd.id, cd.household_id, cd.reward_amount, cd.recurrence_type, cd.enc_recurrence_rule, cd.is_active,
+              cd.override_available_until,
               COALESCE(
                 (SELECT ARRAY_AGG(cek.kid_id) FROM chore_eligible_kids cek WHERE cek.chore_id = cd.id),
                 '{}'
@@ -461,6 +553,14 @@ choresRouter.post('/:id/complete', async (req, res) => {
       await client.query(
         `UPDATE chore_definitions
          SET is_active = false
+         WHERE id = $1 AND household_id = $2`,
+        [chore.id, householdId]
+      )
+    } else {
+      // Clear any override when the chore is completed
+      await client.query(
+        `UPDATE chore_definitions
+         SET override_available_until = NULL
          WHERE id = $1 AND household_id = $2`,
         [chore.id, householdId]
       )

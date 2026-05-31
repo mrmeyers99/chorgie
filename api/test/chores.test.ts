@@ -401,3 +401,111 @@ describe('POST /chores/:id/complete', () => {
     expect(mockClient.query.mock.calls[5]?.[0]).toContain('SET is_active = false')
   })
 })
+
+describe('POST /chores/:id/override-availability', () => {
+  beforeEach(async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockReset()
+    mockClient.release.mockReset()
+  })
+
+  it('requires admin mode token', async () => {
+    const res = await request(app)
+      .post('/chores/chore-1/override-availability')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+
+    expect(res.status).toBe(403)
+  })
+
+  it('overrides availability by setting override timestamp', async () => {
+    const mockClient = await getMockClient()
+
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'chore-1',
+            household_id: 'household-uuid',
+            recurrence_type: 'completion-based',
+            enc_recurrence_rule: '3',
+            is_active: true,
+            last_completed_at: new Date().toISOString(),
+          },
+        ],
+      }) // chore lookup
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE override
+      .mockResolvedValueOnce({ rows: [] }) // COMMIT
+
+    const res = await request(app)
+      .post('/chores/chore-1/override-availability')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .set('x-admin-mode-token', makeAdminModeToken())
+
+    expect(res.status).toBe(200)
+    expect(res.body.message).toBe('Chore availability overridden.')
+    expect(res.body.override_available_until).toBeDefined()
+    expect(mockClient.query.mock.calls[2]?.[0]).toContain('UPDATE chore_definitions')
+    expect(mockClient.query.mock.calls[2]?.[0]).toContain('override_available_until')
+  })
+
+  it('rejects override for inactive chores', async () => {
+    const mockClient = await getMockClient()
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'chore-1',
+            household_id: 'household-uuid',
+            recurrence_type: 'completion-based',
+            enc_recurrence_rule: '3',
+            is_active: false,
+            last_completed_at: new Date().toISOString(),
+          },
+        ],
+      }) // chore lookup
+      .mockResolvedValueOnce({ rows: [] }) // ROLLBACK
+
+    const res = await request(app)
+      .post('/chores/chore-1/override-availability')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .set('x-admin-mode-token', makeAdminModeToken())
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('Cannot override availability for inactive chores.')
+  })
+
+  it('rejects override for non-completion-based chores', async () => {
+    const mockClient = await getMockClient()
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'chore-1',
+            household_id: 'household-uuid',
+            recurrence_type: 'ad-hoc',
+            enc_recurrence_rule: null,
+            is_active: true,
+            last_completed_at: null,
+          },
+        ],
+      }) // chore lookup
+      .mockResolvedValueOnce({ rows: [] }) // ROLLBACK
+
+    const res = await request(app)
+      .post('/chores/chore-1/override-availability')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .set('x-admin-mode-token', makeAdminModeToken())
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('Can only override availability for completion-based chores.')
+  })
+
+  it('requires authentication', async () => {
+    const res = await request(app).post('/chores/chore-1/override-availability')
+
+    expect(res.status).toBe(401)
+  })
+})
