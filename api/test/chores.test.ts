@@ -417,8 +417,9 @@ describe('POST /chores/:id/override-availability', () => {
     expect(res.status).toBe(403)
   })
 
-  it('overrides availability by removing last completion record', async () => {
+  it('overrides availability by setting override timestamp', async () => {
     const mockClient = await getMockClient()
+
     mockClient.query
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({
@@ -427,11 +428,13 @@ describe('POST /chores/:id/override-availability', () => {
             id: 'chore-1',
             household_id: 'household-uuid',
             recurrence_type: 'completion-based',
+            enc_recurrence_rule: '3',
             is_active: true,
+            last_completed_at: new Date().toISOString(),
           },
         ],
       }) // chore lookup
-      .mockResolvedValueOnce({ rows: [] }) // DELETE completion
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE override
       .mockResolvedValueOnce({ rows: [] }) // COMMIT
 
     const res = await request(app)
@@ -441,7 +444,9 @@ describe('POST /chores/:id/override-availability', () => {
 
     expect(res.status).toBe(200)
     expect(res.body.message).toBe('Chore availability overridden.')
-    expect(mockClient.query.mock.calls[2]?.[0]).toContain('DELETE FROM chore_completions')
+    expect(res.body.override_available_until).toBeDefined()
+    expect(mockClient.query.mock.calls[2]?.[0]).toContain('UPDATE chore_definitions')
+    expect(mockClient.query.mock.calls[2]?.[0]).toContain('override_available_until')
   })
 
   it('rejects override for inactive chores', async () => {
@@ -454,7 +459,9 @@ describe('POST /chores/:id/override-availability', () => {
             id: 'chore-1',
             household_id: 'household-uuid',
             recurrence_type: 'completion-based',
+            enc_recurrence_rule: '3',
             is_active: false,
+            last_completed_at: new Date().toISOString(),
           },
         ],
       }) // chore lookup
@@ -479,7 +486,9 @@ describe('POST /chores/:id/override-availability', () => {
             id: 'chore-1',
             household_id: 'household-uuid',
             recurrence_type: 'ad-hoc',
+            enc_recurrence_rule: null,
             is_active: true,
+            last_completed_at: null,
           },
         ],
       }) // chore lookup
