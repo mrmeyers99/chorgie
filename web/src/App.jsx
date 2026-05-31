@@ -22,9 +22,13 @@ function Home() {
   const [kidName, setKidName] = useState('')
   const [avatarId, setAvatarId] = useState('corgi-1')
   const [loadingKids, setLoadingKids] = useState(false)
+  const [chores, setChores] = useState([])
+  const [loadingChores, setLoadingChores] = useState(false)
+  const [selectedKidId, setSelectedKidId] = useState('')
 
   useEffect(() => {
     void loadKids()
+    void loadChores()
   }, [])
 
   if (!userEmail) {
@@ -42,6 +46,18 @@ function Home() {
       setStatus(err.message ?? 'Failed to load kid profiles.')
     } finally {
       setLoadingKids(false)
+    }
+
+    async function loadChores() {
+      setLoadingChores(true)
+      try {
+        const data = await api.getChores()
+        setChores(data.chores ?? [])
+      } catch (err) {
+        setStatus(err.message ?? 'Failed to load chores.')
+      } finally {
+        setLoadingChores(false)
+      }
     }
   }
 
@@ -88,6 +104,10 @@ function Home() {
     } catch (err) {
       setStatus(err.message ?? 'Failed to deactivate kid.')
     }
+
+    function handleKidSelect(id) {
+      setSelectedKidId(id)
+    }
   }
 
   async function handleExitAdminMode(e) {
@@ -111,6 +131,17 @@ function Home() {
     sessionStorage.removeItem('userEmail')
     navigate('/login', { replace: true })
   }
+
+  const selectedKid = kids.find((kid) => kid.id === selectedKidId && kid.is_active !== false)
+  const visibleChores = selectedKid
+    ? chores.filter((chore) => {
+        if (chore.is_active === false) {
+          return false
+        }
+        const eligibleKids = Array.isArray(chore.eligible_kids) ? chore.eligible_kids : []
+        return eligibleKids.length === 0 || eligibleKids.includes(selectedKid.id)
+      })
+    : []
 
   return (
     <main className={styles.page}>
@@ -212,10 +243,17 @@ function Home() {
           <ul className={styles.kidGrid}>
             {kids.map((kid) => (
               <li key={kid.id} className={`${styles.kidCard}${kid.is_active === false ? ` ${styles.kidCardInactive}` : ''}`}>
-                <span className={styles.kidAvatar}>
-                  {AVATAR_EMOJI[kid.avatar_id] ?? '🐾'}
-                </span>
-                <span className={styles.kidName}>{kid.enc_display_name}</span>
+                <button
+                  type="button"
+                  onClick={() => handleKidSelect(kid.id)}
+                  disabled={kid.is_active === false}
+                  className={`${styles.kidSelectBtn}${selectedKidId === kid.id ? ` ${styles.kidSelectBtnActive}` : ''}`}
+                >
+                  <span className={styles.kidAvatar}>
+                    {AVATAR_EMOJI[kid.avatar_id] ?? '🐾'}
+                  </span>
+                  <span className={styles.kidName}>{kid.enc_display_name}</span>
+                </button>
                 {adminModeToken && kid.is_active !== false && (
                   <button
                     type="button"
@@ -234,6 +272,26 @@ function Home() {
           </p>
         )}
       </div>
+
+      {selectedKid ? (
+        <div className={styles.choresCard}>
+          <p className={styles.sectionTitle}>Chores for {selectedKid.enc_display_name}</p>
+          {loadingChores ? (
+            <p className={styles.emptyState}>Loading chores…</p>
+          ) : visibleChores.length ? (
+            <ul className={styles.choreList}>
+              {visibleChores.map((chore) => (
+                <li key={chore.id} className={styles.choreItem}>
+                  <span className={styles.choreName}>{chore.enc_name}</span>
+                  <span className={styles.choreMeta}>${chore.reward_amount}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className={styles.emptyState}>No chores are available right now.</p>
+          )}
+        </div>
+      ) : null}
     </main>
   )
 }
