@@ -48,8 +48,59 @@ type ChoreRow = {
   enc_recurrence_rule: string | null
   eligible_kids: string[]
   is_active: boolean
+  is_available: boolean
   last_completed_at: string | null
   created_at: string
+}
+
+type ChoreAvailabilityRow = {
+  id: string
+  household_id: string
+  reward_amount: string
+  recurrence_type: string
+  enc_recurrence_rule: string | null
+  eligible_kids: string[]
+  is_active: boolean
+  last_completed_at: string | null
+}
+
+const completeChoreSchema = z.object({
+  kid_id: z.string().uuid(),
+})
+
+function getRecurrenceDays(rule: string | null) {
+  if (!rule) return null
+  const parsed = Number.parseInt(rule, 10)
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return null
+  }
+  return parsed
+}
+
+function isChoreCurrentlyAvailable(chore: {
+  recurrence_type: string
+  enc_recurrence_rule: string | null
+  last_completed_at: string | null
+}) {
+  if (!chore.last_completed_at) {
+    return true
+  }
+
+  if (chore.recurrence_type === 'one-time') {
+    return false
+  }
+
+  if (chore.recurrence_type === 'completion-based') {
+    const recurrenceDays = getRecurrenceDays(chore.enc_recurrence_rule)
+    if (!recurrenceDays) {
+      return false
+    }
+    const completedAt = new Date(chore.last_completed_at)
+    const nextEligibleAt = new Date(completedAt.getTime() + recurrenceDays * 24 * 60 * 60 * 1000)
+    return new Date() >= nextEligibleAt
+  }
+
+  return true
 }
 
 async function allKidsExistInHousehold(
@@ -78,13 +129,34 @@ choresRouter.get('/', async (_req, res) => {
   try {
     const result = await client.query<ChoreRow>(
       `SELECT cd.id, cd.household_id, cd.enc_name, cd.enc_description, cd.reward_amount,
-              cd.recurrence_type, cd.enc_recurrence_rule, cd.is_active, cd.last_completed_at, cd.created_at,
-              COALESCE(ARRAY_AGG(cek.kid_id) FILTER (WHERE cek.kid_id IS NOT NULL), '{}') AS eligible_kids
+              cd.recurrence_type, cd.enc_recurrence_rule, cd.is_active, cd.created_at,
+              COALESCE(
+                (SELECT ARRAY_AGG(cek.kid_id) FROM chore_eligible_kids cek WHERE cek.chore_id = cd.id),
+                '{}'
+              ) AS eligible_kids,
+              lc.completed_at AS last_completed_at,
+              CASE
+                WHEN cd.is_active = false THEN false
+                WHEN cd.recurrence_type = 'completion-based'
+                  THEN lc.completed_at IS NULL OR (
+                    CASE
+                      WHEN cd.enc_recurrence_rule ~ '^[1-9][0-9]*$'
+                        THEN NOW() >= lc.completed_at + ((cd.enc_recurrence_rule::int) * INTERVAL '1 day')
+                      ELSE false
+                    END
+                  )
+                ELSE true
+              END AS is_available
        FROM chore_definitions cd
-       LEFT JOIN chore_eligible_kids cek ON cek.chore_id = cd.id
+       LEFT JOIN LATERAL (
+         SELECT completed_at
+         FROM chore_completions
+         WHERE chore_id = cd.id
+         ORDER BY completed_at DESC
+         LIMIT 1
+       ) lc ON true
        WHERE cd.household_id = $1
-       GROUP BY cd.id
-       ORDER BY cd.last_completed_at DESC NULLS LAST, cd.created_at ASC`,
+       ORDER BY lc.completed_at DESC NULLS LAST, cd.created_at ASC`,
       [householdId]
     )
 
@@ -282,6 +354,120 @@ choresRouter.delete('/:id', requireAdminMode, async (req, res) => {
     }
 
     res.status(204).send()
+  } finally {
+    client.release()
+  }
+})
+
+choresRouter.post('/:id/complete', async (req, res) => {
+  const householdId = res.locals.auth?.householdId as string | undefined
+  if (!householdId) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+
+  const parsed = completeChoreSchema.safeParse(req.body)
+  if (!parsed.success) {
+    const flat = parsed.error.flatten()
+    const message =
+      flat.formErrors[0] ??
+      Object.values(flat.fieldErrors).flat()[0] ??
+      'Invalid request'
+    res.status(400).json({ error: message })
+    return
+  }
+
+  const { id } = req.params
+  const { kid_id } = parsed.data
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+
+    const kidResult = await client.query<{ id: string }>(
+      `SELECT id
+       FROM kid_profiles
+       WHERE id = $1 AND household_id = $2 AND is_active = true`,
+      [kid_id, householdId]
+    )
+
+    if (!kidResult.rows[0]) {
+      await client.query('ROLLBACK')
+      res.status(400).json({ error: 'Kid profile not found.' })
+      return
+    }
+
+    const choreResult = await client.query<ChoreAvailabilityRow>(
+      `SELECT cd.id, cd.household_id, cd.reward_amount, cd.recurrence_type, cd.enc_recurrence_rule, cd.is_active,
+              COALESCE(
+                (SELECT ARRAY_AGG(cek.kid_id) FROM chore_eligible_kids cek WHERE cek.chore_id = cd.id),
+                '{}'
+              ) AS eligible_kids,
+              lc.completed_at AS last_completed_at
+       FROM chore_definitions cd
+       LEFT JOIN LATERAL (
+         SELECT completed_at
+         FROM chore_completions
+         WHERE chore_id = cd.id
+         ORDER BY completed_at DESC
+         LIMIT 1
+       ) lc ON true
+       WHERE cd.id = $1 AND cd.household_id = $2
+       FOR UPDATE`,
+      [id, householdId]
+    )
+
+    const chore = choreResult.rows[0]
+    if (!chore) {
+      await client.query('ROLLBACK')
+      res.status(404).json({ error: 'Chore definition not found.' })
+      return
+    }
+
+    if (!chore.is_active) {
+      await client.query('ROLLBACK')
+      res.status(409).json({ error: 'This chore is not active.' })
+      return
+    }
+
+    if (chore.eligible_kids.length > 0 && !chore.eligible_kids.includes(kid_id)) {
+      await client.query('ROLLBACK')
+      res.status(403).json({ error: 'This kid is not eligible for the chore.' })
+      return
+    }
+
+    if (!isChoreCurrentlyAvailable(chore)) {
+      await client.query('ROLLBACK')
+      res.status(409).json({ error: 'This chore is not available yet.' })
+      return
+    }
+
+    const completionResult = await client.query<{ completed_at: string }>(
+      `INSERT INTO chore_completions (household_id, chore_id, kid_id, reward_amount)
+       VALUES ($1, $2, $3, $4)
+       RETURNING completed_at`,
+      [householdId, chore.id, kid_id, chore.reward_amount]
+    )
+
+    const balanceResult = await client.query<{ balance: string }>(
+      `UPDATE kid_profiles
+       SET balance = balance + $3::numeric
+       WHERE id = $1 AND household_id = $2
+       RETURNING balance`,
+      [kid_id, householdId, chore.reward_amount]
+    )
+
+    await client.query('COMMIT')
+    res.status(200).json({
+      chore_id: chore.id,
+      kid_id,
+      reward_amount: chore.reward_amount,
+      balance: balanceResult.rows[0]?.balance,
+      completed_at: completionResult.rows[0]?.completed_at,
+    })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    throw err
   } finally {
     client.release()
   }
