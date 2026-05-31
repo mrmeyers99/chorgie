@@ -117,6 +117,11 @@ export const api = {
       headers: { ...getAuthHeader(), ...getAdminModeHeader() },
       body: JSON.stringify(payload),
     }),
+  deleteKid: (id) =>
+    request(`/kids/${id}`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeader(), ...getAdminModeHeader() },
+    }),
   getChores: () =>
     request('/chores', {
       headers: getAuthHeader(),
