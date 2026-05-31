@@ -222,7 +222,7 @@ export default function ChoreAdmin() {
         </div>
         {(form.recurrence_type === 'completion-based' || form.recurrence_type === 'fixed') && (
           <div style={{ marginTop: 8 }}>
-            <label htmlFor="enc_recurrence_rule">Days after last completion</label>
+            <label htmlFor="enc_recurrence_rule">Repeat every (days)</label>
             <br />
             <input
               id="enc_recurrence_rule"
