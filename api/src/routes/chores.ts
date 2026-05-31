@@ -457,6 +457,15 @@ choresRouter.post('/:id/complete', async (req, res) => {
       [kid_id, householdId, chore.reward_amount]
     )
 
+    if (chore.recurrence_type === 'ad-hoc') {
+      await client.query(
+        `UPDATE chore_definitions
+         SET is_active = false
+         WHERE id = $1 AND household_id = $2`,
+        [chore.id, householdId]
+      )
+    }
+
     await client.query('COMMIT')
     res.status(200).json({
       chore_id: chore.id,
