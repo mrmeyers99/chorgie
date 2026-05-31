@@ -161,23 +161,23 @@ export default function ChoreAdmin() {
     } catch (err) {
       setStatus(err.message ?? 'Failed to activate chore.')
     }
-
-    const sortedChores = [...chores].sort((left, right) => {
-      const leftLastCompleted = left.last_completed_at
-      const rightLastCompleted = right.last_completed_at
-
-      if (leftLastCompleted && rightLastCompleted) {
-        const timeDiff = new Date(rightLastCompleted).getTime() - new Date(leftLastCompleted).getTime()
-        if (timeDiff !== 0) return timeDiff
-      } else if (leftLastCompleted) {
-        return -1
-      } else if (rightLastCompleted) {
-        return 1
-      }
-
-      return String(left.enc_name ?? '').localeCompare(String(right.enc_name ?? ''))
-    })
   }
+
+  const sortedChores = [...chores].sort((left, right) => {
+    const leftLastCompleted = left.last_completed_at
+    const rightLastCompleted = right.last_completed_at
+
+    if (leftLastCompleted && rightLastCompleted) {
+      const timeDiff = new Date(rightLastCompleted).getTime() - new Date(leftLastCompleted).getTime()
+      if (timeDiff !== 0) return timeDiff
+    } else if (leftLastCompleted) {
+      return -1
+    } else if (rightLastCompleted) {
+      return 1
+    }
+
+    return String(left.enc_name ?? '').localeCompare(String(right.enc_name ?? ''))
+  })
 
   return (
     <main className={styles.page}>
