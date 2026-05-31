@@ -147,16 +147,16 @@ export default function ChoreAdmin() {
     } catch (err) {
       setStatus(err.message ?? 'Failed to deactivate chore.')
     }
+  }
 
-    async function handleReactivate(id) {
-      setStatus('')
-      try {
-        await api.updateChore(id, { is_active: true })
-        setStatus('Chore activated.')
-        await loadChores()
-      } catch (err) {
-        setStatus(err.message ?? 'Failed to activate chore.')
-      }
+  async function handleReactivate(id) {
+    setStatus('')
+    try {
+      await api.updateChore(id, { is_active: true })
+      setStatus('Chore activated.')
+      await loadChores()
+    } catch (err) {
+      setStatus(err.message ?? 'Failed to activate chore.')
     }
   }
 
