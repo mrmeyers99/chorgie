@@ -211,6 +211,16 @@ describe('GET /payouts', () => {
     expect(res.status).toBe(200)
     expect(res.body.payouts).toHaveLength(1)
   })
+
+  it('returns 400 for invalid kid_id parameter', async () => {
+    const res = await request(app)
+      .get('/payouts?kid_id=invalid-uuid')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .set('x-admin-mode-token', makeAdminModeToken())
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('Invalid kid_id parameter')
+  })
 })
 
 describe('GET /payouts/:id', () => {
@@ -222,7 +232,7 @@ describe('GET /payouts/:id', () => {
 
   it('requires admin mode token', async () => {
     const res = await request(app)
-      .get('/payouts/payout-uuid')
+      .get('/payouts/f47ac10b-58cc-4372-a567-0e02b2c3d471')
       .set('Authorization', `Bearer ${makeAccessToken()}`)
 
     expect(res.status).toBe(403)
@@ -273,7 +283,17 @@ describe('GET /payouts/:id', () => {
     mockClient.query.mockResolvedValueOnce({ rows: [] })
 
     const res = await request(app)
-      .get('/payouts/nonexistent')
+      .get('/payouts/f47ac10b-58cc-4372-a567-0e02b2c3d472')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .set('x-admin-mode-token', makeAdminModeToken())
+
+    expect(res.status).toBe(404)
+    expect(res.body.error).toBe('Payout not found.')
+  })
+
+  it('returns 404 for invalid id parameter', async () => {
+    const res = await request(app)
+      .get('/payouts/invalid-uuid')
       .set('Authorization', `Bearer ${makeAccessToken()}`)
       .set('x-admin-mode-token', makeAdminModeToken())
 

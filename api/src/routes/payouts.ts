@@ -53,10 +53,12 @@ payoutsRouter.post('/', requireAdminMode, async (req, res) => {
   try {
     await client.query('BEGIN')
 
-    const kidResult = await client.query<{ id: string }>(
-      `SELECT id
+    // Lock the kid_profiles row to prevent race conditions with concurrent chore completions
+    const kidResult = await client.query<{ id: string; balance: string }>(
+      `SELECT id, balance
        FROM kid_profiles
-       WHERE id = $1 AND household_id = $2 AND is_active = true`,
+       WHERE id = $1 AND household_id = $2 AND is_active = true
+       FOR UPDATE`,
       [kid_id, householdId]
     )
 
@@ -96,11 +98,17 @@ payoutsRouter.post('/', requireAdminMode, async (req, res) => {
       [payout.id, payout.paid_at, householdId, kid_id]
     )
 
+    // Compute the decrement explicitly to handle concurrent completions
+    const totalPaidAmount = unpaidCompletions.rows.reduce(
+      (sum, completion) => sum + parseFloat(completion.reward_amount),
+      0
+    )
+
     await client.query(
       `UPDATE kid_profiles
-       SET balance = 0
-       WHERE id = $1 AND household_id = $2`,
-      [kid_id, householdId]
+       SET balance = balance - $1
+       WHERE id = $2 AND household_id = $3`,
+      [totalPaidAmount, kid_id, householdId]
     )
 
     await client.query('COMMIT')
@@ -124,6 +132,15 @@ payoutsRouter.get('/', requireAdminMode, async (req, res) => {
   }
 
   const kidIdFilter = req.query.kid_id as string | undefined
+
+  // Validate kid_id if provided
+  if (kidIdFilter) {
+    const kidIdValidation = z.string().uuid().safeParse(kidIdFilter)
+    if (!kidIdValidation.success) {
+      res.status(400).json({ error: 'Invalid kid_id parameter' })
+      return
+    }
+  }
 
   const client = await pool.connect()
   try {
@@ -155,6 +172,13 @@ payoutsRouter.get('/:id', requireAdminMode, async (req, res) => {
   }
 
   const { id } = req.params
+
+  // Validate id parameter
+  const idValidation = z.string().uuid().safeParse(id)
+  if (!idValidation.success) {
+    res.status(404).json({ error: 'Payout not found.' })
+    return
+  }
 
   const client = await pool.connect()
   try {
