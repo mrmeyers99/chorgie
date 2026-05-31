@@ -117,4 +117,25 @@ export const api = {
       headers: { ...getAuthHeader(), ...getAdminModeHeader() },
       body: JSON.stringify(payload),
     }),
+  getChores: () =>
+    request('/chores', {
+      headers: getAuthHeader(),
+    }),
+  createChore: (payload) =>
+    request('/chores', {
+      method: 'POST',
+      headers: { ...getAuthHeader(), ...getAdminModeHeader() },
+      body: JSON.stringify(payload),
+    }),
+  updateChore: (id, payload) =>
+    request(`/chores/${id}`, {
+      method: 'PATCH',
+      headers: { ...getAuthHeader(), ...getAdminModeHeader() },
+      body: JSON.stringify(payload),
+    }),
+  deleteChore: (id) =>
+    request(`/chores/${id}`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeader(), ...getAdminModeHeader() },
+    }),
 }
