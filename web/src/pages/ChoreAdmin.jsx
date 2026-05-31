@@ -3,13 +3,13 @@ import { Link, Navigate } from 'react-router-dom'
 import { api } from '../lib/api.js'
 import styles from './ChoreAdmin.module.css'
 
-const RECURRENCE_TYPES = ['one-time', 'ad-hoc', 'completion-based']
+const RECURRENCE_TYPES = ['ad-hoc', 'completion-based']
 
 const emptyForm = {
   enc_name: '',
   enc_description: '',
   reward_amount: '',
-  recurrence_type: 'one-time',
+  recurrence_type: 'ad-hoc',
   enc_recurrence_rule: '',
   eligible_kids: [],
 }
@@ -66,7 +66,7 @@ export default function ChoreAdmin() {
       ...prev,
       [name]: value,
       // Clear the recurrence rule when switching to recurrence types that do not use it
-      ...(name === 'recurrence_type' && (value === 'one-time' || value === 'ad-hoc')
+      ...(name === 'recurrence_type' && value === 'ad-hoc'
         ? { enc_recurrence_rule: '' }
         : {}),
     }))
@@ -97,7 +97,10 @@ export default function ChoreAdmin() {
       enc_name: chore.enc_name ?? '',
       enc_description: chore.enc_description ?? '',
       reward_amount: chore.reward_amount ?? '',
-      recurrence_type: chore.recurrence_type ?? 'one-time',
+      recurrence_type:
+        chore.recurrence_type === 'one-time'
+          ? 'ad-hoc'
+          : (chore.recurrence_type ?? 'ad-hoc'),
       enc_recurrence_rule: chore.enc_recurrence_rule ?? '',
       eligible_kids: chore.eligible_kids ?? [],
     })
@@ -158,6 +161,22 @@ export default function ChoreAdmin() {
     } catch (err) {
       setStatus(err.message ?? 'Failed to activate chore.')
     }
+
+    const sortedChores = [...chores].sort((left, right) => {
+      const leftLastCompleted = left.last_completed_at
+      const rightLastCompleted = right.last_completed_at
+
+      if (leftLastCompleted && rightLastCompleted) {
+        const timeDiff = new Date(rightLastCompleted).getTime() - new Date(leftLastCompleted).getTime()
+        if (timeDiff !== 0) return timeDiff
+      } else if (leftLastCompleted) {
+        return -1
+      } else if (rightLastCompleted) {
+        return 1
+      }
+
+      return String(left.enc_name ?? '').localeCompare(String(right.enc_name ?? ''))
+    })
   }
 
   return (
@@ -296,7 +315,7 @@ export default function ChoreAdmin() {
         <p className={styles.loadingMsg}>No chores yet.</p>
       ) : (
         <ul className={styles.list}>
-          {chores.map((chore) => (
+          {sortedChores.map((chore) => (
             <li
               key={chore.id}
               className={`${styles.listItem}${chore.is_active === false ? ` ${styles.inactive}` : ''}`}

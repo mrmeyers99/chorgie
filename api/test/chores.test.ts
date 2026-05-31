@@ -94,7 +94,7 @@ describe('POST /chores', () => {
     const res = await request(app)
       .post('/chores')
       .set('Authorization', `Bearer ${makeAccessToken()}`)
-      .send({ enc_name: 'enc-name', reward_amount: 2.5, recurrence_type: 'one-time' })
+      .send({ enc_name: 'enc-name', reward_amount: 2.5, recurrence_type: 'ad-hoc' })
 
     expect(res.status).toBe(403)
   })
@@ -132,7 +132,7 @@ describe('POST /chores', () => {
       .post('/chores')
       .set('Authorization', `Bearer ${makeAccessToken()}`)
       .set('x-admin-mode-token', makeAdminModeToken())
-      .send({ enc_name: 'enc-name', reward_amount: -1, recurrence_type: 'one-time' })
+      .send({ enc_name: 'enc-name', reward_amount: -1, recurrence_type: 'ad-hoc' })
 
     expect(res.status).toBe(400)
   })
@@ -158,7 +158,7 @@ describe('POST /chores', () => {
       .send({
         enc_name: 'enc-name',
         reward_amount: 2.5,
-        recurrence_type: 'one-time',
+        recurrence_type: 'ad-hoc',
         eligible_kids: ['11111111-1111-4111-8111-111111111111'],
       })
 

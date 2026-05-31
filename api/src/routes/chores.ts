@@ -5,7 +5,7 @@ import { requireAdminMode } from '../middleware/admin.js'
 
 export const choresRouter = Router()
 
-const RECURRENCE_TYPES = ['one-time', 'ad-hoc', 'completion-based'] as const
+const RECURRENCE_TYPES = ['ad-hoc', 'completion-based'] as const
 
 const createChoreSchema = z.object({
   enc_name: z.string().min(1),
@@ -48,6 +48,7 @@ type ChoreRow = {
   enc_recurrence_rule: string | null
   eligible_kids: string[]
   is_active: boolean
+  last_completed_at: string | null
   created_at: string
 }
 
@@ -77,13 +78,13 @@ choresRouter.get('/', async (_req, res) => {
   try {
     const result = await client.query<ChoreRow>(
       `SELECT cd.id, cd.household_id, cd.enc_name, cd.enc_description, cd.reward_amount,
-              cd.recurrence_type, cd.enc_recurrence_rule, cd.is_active, cd.created_at,
+              cd.recurrence_type, cd.enc_recurrence_rule, cd.is_active, cd.last_completed_at, cd.created_at,
               COALESCE(ARRAY_AGG(cek.kid_id) FILTER (WHERE cek.kid_id IS NOT NULL), '{}') AS eligible_kids
        FROM chore_definitions cd
        LEFT JOIN chore_eligible_kids cek ON cek.chore_id = cd.id
        WHERE cd.household_id = $1
        GROUP BY cd.id
-       ORDER BY cd.created_at ASC`,
+       ORDER BY cd.last_completed_at DESC NULLS LAST, cd.created_at ASC`,
       [householdId]
     )
 
