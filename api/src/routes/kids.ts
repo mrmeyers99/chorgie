@@ -41,10 +41,11 @@ kidsRouter.get('/', async (_req, res) => {
       enc_display_name: string
       avatar_id: string
       sort_order: number
+      balance: string
       is_active: boolean
       created_at: string
     }>(
-      `SELECT id, enc_display_name, avatar_id, sort_order, is_active, created_at
+      `SELECT id, enc_display_name, avatar_id, sort_order, balance, is_active, created_at
        FROM kid_profiles
        WHERE household_id = $1
        ORDER BY sort_order ASC, created_at ASC`,
@@ -83,12 +84,13 @@ kidsRouter.post('/', requireAdminMode, async (req, res) => {
       enc_display_name: string
       avatar_id: string
       sort_order: number
+      balance: string
       is_active: boolean
       created_at: string
     }>(
       `INSERT INTO kid_profiles (household_id, enc_display_name, avatar_id, sort_order)
        VALUES ($1, $2, $3, $4)
-       RETURNING id, enc_display_name, avatar_id, sort_order, is_active, created_at`,
+       RETURNING id, enc_display_name, avatar_id, sort_order, balance, is_active, created_at`,
       [householdId, enc_display_name, avatar_id, sort_order]
     )
 
@@ -154,6 +156,7 @@ kidsRouter.patch('/:id', requireAdminMode, async (req, res) => {
       enc_display_name: string
       avatar_id: string
       sort_order: number
+      balance: string
       is_active: boolean
       created_at: string
     }>(
@@ -163,7 +166,7 @@ kidsRouter.patch('/:id', requireAdminMode, async (req, res) => {
            sort_order = COALESCE($5, sort_order),
            is_active = COALESCE($6, is_active)
        WHERE id = $1 AND household_id = $2
-       RETURNING id, enc_display_name, avatar_id, sort_order, is_active, created_at`,
+       RETURNING id, enc_display_name, avatar_id, sort_order, balance, is_active, created_at`,
       [
         id,
         householdId,

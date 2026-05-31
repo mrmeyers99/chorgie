@@ -143,4 +143,10 @@ export const api = {
       method: 'DELETE',
       headers: { ...getAuthHeader(), ...getAdminModeHeader() },
     }),
+  completeChore: (id, payload) =>
+    request(`/chores/${id}/complete`, {
+      method: 'POST',
+      headers: getAuthHeader(),
+      body: JSON.stringify(payload),
+    }),
 }

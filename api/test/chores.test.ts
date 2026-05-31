@@ -55,6 +55,8 @@ const sampleChore = {
   enc_recurrence_rule: 'enc-weekly-monday',
   eligible_kids: [],
   is_active: true,
+  is_available: true,
+  last_completed_at: null,
   created_at: '2026-05-25T00:00:00.000Z',
 }
 
@@ -278,5 +280,84 @@ describe('DELETE /chores/:id', () => {
       .delete('/chores/chore-1')
       .set('Authorization', `Bearer ${makeAccessToken()}`)
     expect(res.status).toBe(403)
+  })
+})
+
+describe('POST /chores/:id/complete', () => {
+  beforeEach(async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockReset()
+    mockClient.release.mockReset()
+  })
+
+  it('completes an available chore and updates balance', async () => {
+    const mockClient = await getMockClient()
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 'kid-1' }] }) // kid lookup
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'chore-1',
+            household_id: 'household-uuid',
+            reward_amount: '2.50',
+            recurrence_type: 'completion-based',
+            enc_recurrence_rule: '2',
+            eligible_kids: ['kid-1'],
+            is_active: true,
+            last_completed_at: null,
+          },
+        ],
+      }) // chore lookup
+      .mockResolvedValueOnce({ rows: [{ completed_at: '2026-05-31T00:00:00.000Z' }] }) // completion insert
+      .mockResolvedValueOnce({ rows: [{ balance: '5.00' }] }) // balance update
+      .mockResolvedValueOnce({ rows: [] }) // COMMIT
+
+    const res = await request(app)
+      .post('/chores/chore-1/complete')
+      .set('Authorization', 'Bearer ' + makeAccessToken())
+      .send({ kid_id: 'kid-1' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.reward_amount).toBe('2.50')
+    expect(res.body.balance).toBe('5.00')
+  })
+
+  it('rejects completion when chore is not currently available', async () => {
+    const mockClient = await getMockClient()
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 'kid-1' }] }) // kid lookup
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'chore-1',
+            household_id: 'household-uuid',
+            reward_amount: '2.50',
+            recurrence_type: 'completion-based',
+            enc_recurrence_rule: '3',
+            eligible_kids: ['kid-1'],
+            is_active: true,
+            last_completed_at: new Date().toISOString(),
+          },
+        ],
+      }) // chore lookup
+      .mockResolvedValueOnce({ rows: [] }) // ROLLBACK
+
+    const res = await request(app)
+      .post('/chores/chore-1/complete')
+      .set('Authorization', 'Bearer ' + makeAccessToken())
+      .send({ kid_id: 'kid-1' })
+
+    expect(res.status).toBe(409)
+    expect(res.body.error).toBe('This chore is not available yet.')
+  })
+
+  it('requires authentication', async () => {
+    const res = await request(app)
+      .post('/chores/chore-1/complete')
+      .send({ kid_id: 'kid-1' })
+
+    expect(res.status).toBe(401)
   })
 })
