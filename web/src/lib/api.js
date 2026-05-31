@@ -149,4 +149,18 @@ export const api = {
       headers: getAuthHeader(),
       body: JSON.stringify(payload),
     }),
+  createPayout: (payload) =>
+    request('/payouts', {
+      method: 'POST',
+      headers: { ...getAuthHeader(), ...getAdminModeHeader() },
+      body: JSON.stringify(payload),
+    }),
+  getPayouts: (kidId) =>
+    request(`/payouts${kidId ? `?kid_id=${kidId}` : ''}`, {
+      headers: { ...getAuthHeader(), ...getAdminModeHeader() },
+    }),
+  getPayout: (id) =>
+    request(`/payouts/${id}`, {
+      headers: { ...getAuthHeader(), ...getAdminModeHeader() },
+    }),
 }
