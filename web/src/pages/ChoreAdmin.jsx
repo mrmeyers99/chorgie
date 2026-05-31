@@ -140,17 +140,6 @@ export default function ChoreAdmin() {
     }
   }
 
-  async function handleDeleteKid(id) {
-    setStatus('')
-    try {
-      await api.deleteKid(id)
-      setStatus('Kid deactivated.')
-      await loadKids()
-    } catch (err) {
-      setStatus(err.message ?? 'Failed to deactivate kid.')
-    }
-  }
-
   return (
     <section style={{ padding: '40px 24px', maxWidth: 640, margin: '0 auto' }}>
       <h1>Chore Admin</h1>
@@ -295,35 +284,6 @@ export default function ChoreAdmin() {
                   </button>
                 )}
               </span>
-            </li>
-          ))}
-        </ul>
-      )}
-      <h2 style={{ marginTop: 32 }}>Kids</h2>
-      {kids.length === 0 ? (
-        <p>No kids yet.</p>
-      ) : (
-        <ul style={{ listStyle: 'none', padding: 0 }}>
-          {kids.map((kid) => (
-            <li
-              key={kid.id}
-              style={{
-                borderBottom: '1px solid #ccc',
-                padding: '8px 0',
-                opacity: kid.is_active === false ? 0.5 : 1,
-              }}
-            >
-              <strong>{kid.enc_display_name}</strong> — {kid.avatar_id}
-              {kid.is_active === false && ' [inactive]'}
-              {kid.is_active !== false && (
-                <button
-                  type="button"
-                  onClick={() => handleDeleteKid(kid.id)}
-                  style={{ marginLeft: 12 }}
-                >
-                  Delete
-                </button>
-              )}
             </li>
           ))}
         </ul>
