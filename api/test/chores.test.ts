@@ -291,10 +291,11 @@ describe('POST /chores/:id/complete', () => {
   })
 
   it('completes an available chore and updates balance', async () => {
+    const kidId = '11111111-1111-4111-8111-111111111111'
     const mockClient = await getMockClient()
     mockClient.query
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
-      .mockResolvedValueOnce({ rows: [{ id: 'kid-1' }] }) // kid lookup
+      .mockResolvedValueOnce({ rows: [{ id: kidId }] }) // kid lookup
       .mockResolvedValueOnce({
         rows: [
           {
@@ -303,7 +304,7 @@ describe('POST /chores/:id/complete', () => {
             reward_amount: '2.50',
             recurrence_type: 'completion-based',
             enc_recurrence_rule: '2',
-            eligible_kids: ['kid-1'],
+            eligible_kids: [kidId],
             is_active: true,
             last_completed_at: null,
           },
@@ -316,7 +317,7 @@ describe('POST /chores/:id/complete', () => {
     const res = await request(app)
       .post('/chores/chore-1/complete')
       .set('Authorization', 'Bearer ' + makeAccessToken())
-      .send({ kid_id: 'kid-1' })
+      .send({ kid_id: kidId })
 
     expect(res.status).toBe(200)
     expect(res.body.reward_amount).toBe('2.50')
@@ -324,10 +325,11 @@ describe('POST /chores/:id/complete', () => {
   })
 
   it('rejects completion when chore is not currently available', async () => {
+    const kidId = '11111111-1111-4111-8111-111111111111'
     const mockClient = await getMockClient()
     mockClient.query
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
-      .mockResolvedValueOnce({ rows: [{ id: 'kid-1' }] }) // kid lookup
+      .mockResolvedValueOnce({ rows: [{ id: kidId }] }) // kid lookup
       .mockResolvedValueOnce({
         rows: [
           {
@@ -336,7 +338,7 @@ describe('POST /chores/:id/complete', () => {
             reward_amount: '2.50',
             recurrence_type: 'completion-based',
             enc_recurrence_rule: '3',
-            eligible_kids: ['kid-1'],
+            eligible_kids: [kidId],
             is_active: true,
             last_completed_at: new Date().toISOString(),
           },
@@ -347,7 +349,7 @@ describe('POST /chores/:id/complete', () => {
     const res = await request(app)
       .post('/chores/chore-1/complete')
       .set('Authorization', 'Bearer ' + makeAccessToken())
-      .send({ kid_id: 'kid-1' })
+      .send({ kid_id: kidId })
 
     expect(res.status).toBe(409)
     expect(res.body.error).toBe('This chore is not available yet.')
@@ -356,7 +358,7 @@ describe('POST /chores/:id/complete', () => {
   it('requires authentication', async () => {
     const res = await request(app)
       .post('/chores/chore-1/complete')
-      .send({ kid_id: 'kid-1' })
+      .send({ kid_id: '11111111-1111-4111-8111-111111111111' })
 
     expect(res.status).toBe(401)
   })
