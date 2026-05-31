@@ -37,7 +37,7 @@ function Home() {
     setLoadingKids(true)
     try {
       const data = await api.getKids()
-      setKids(data.kids ?? [])
+      setKids((data.kids ?? []).filter((kid) => kid.is_active !== false))
     } catch (err) {
       setStatus(err.message ?? 'Failed to load kid profiles.')
     } finally {
@@ -211,12 +211,12 @@ function Home() {
         ) : kids.length ? (
           <ul className={styles.kidGrid}>
             {kids.map((kid) => (
-              <li key={kid.id} className={`${styles.kidCard}${kid.is_active === false ? ` ${styles.kidCardInactive}` : ''}`}>
+              <li key={kid.id} className={styles.kidCard}>
                 <span className={styles.kidAvatar}>
                   {AVATAR_EMOJI[kid.avatar_id] ?? '🐾'}
                 </span>
                 <span className={styles.kidName}>{kid.enc_display_name}</span>
-                {adminModeToken && kid.is_active !== false && (
+                {adminModeToken && (
                   <button
                     type="button"
                     onClick={() => void handleDeleteKid(kid.id)}
