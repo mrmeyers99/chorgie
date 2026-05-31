@@ -163,6 +163,17 @@ export default function ChoreAdmin() {
     }
   }
 
+  async function handleOverrideAvailability(id) {
+    setStatus('')
+    try {
+      await api.overrideChoreAvailability(id)
+      setStatus('Chore availability overridden. It is now available.')
+      await loadChores()
+    } catch (err) {
+      setStatus(err.message ?? 'Failed to override availability.')
+    }
+  }
+
   const sortedChores = [...chores].sort((left, right) => {
     const leftLastCompleted = left.last_completed_at
     const rightLastCompleted = right.last_completed_at
@@ -331,6 +342,9 @@ export default function ChoreAdmin() {
                 </div>
                 <div className={styles.listItemMeta}>
                   ${chore.reward_amount} · {chore.recurrence_type}
+                  {chore.last_completed_at && (
+                    <> · Last done: {new Date(chore.last_completed_at).toLocaleDateString()}</>
+                  )}
                 </div>
               </div>
               <div className={styles.listItemActions}>
@@ -342,13 +356,25 @@ export default function ChoreAdmin() {
                   Edit
                 </button>
                 {chore.is_active !== false ? (
-                  <button
-                    type="button"
-                    onClick={() => handleDeactivate(chore.id)}
-                    className={`${styles.btn} ${styles.btnDanger}`}
-                  >
-                    Deactivate
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleDeactivate(chore.id)}
+                      className={`${styles.btn} ${styles.btnDanger}`}
+                    >
+                      Deactivate
+                    </button>
+                    {chore.recurrence_type === 'completion-based' && !chore.is_available && (
+                      <button
+                        type="button"
+                        onClick={() => handleOverrideAvailability(chore.id)}
+                        className={`${styles.btn} ${styles.btnSecondary}`}
+                        title="Make this chore available now, even though the recurrence period hasn't elapsed"
+                      >
+                        Override
+                      </button>
+                    )}
+                  </>
                 ) : (
                   <button
                     type="button"

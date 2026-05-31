@@ -359,6 +359,68 @@ choresRouter.delete('/:id', requireAdminMode, async (req, res) => {
   }
 })
 
+choresRouter.post('/:id/override-availability', requireAdminMode, async (req, res) => {
+  const householdId = res.locals.auth?.householdId as string | undefined
+  if (!householdId) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+
+  const { id } = req.params
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+
+    const choreResult = await client.query<ChoreRow>(
+      `SELECT id, household_id, recurrence_type, is_active
+       FROM chore_definitions
+       WHERE id = $1 AND household_id = $2
+       FOR UPDATE`,
+      [id, householdId]
+    )
+
+    const chore = choreResult.rows[0]
+    if (!chore) {
+      await client.query('ROLLBACK')
+      res.status(404).json({ error: 'Chore definition not found.' })
+      return
+    }
+
+    if (!chore.is_active) {
+      await client.query('ROLLBACK')
+      res.status(400).json({ error: 'Cannot override availability for inactive chores.' })
+      return
+    }
+
+    if (chore.recurrence_type !== 'completion-based') {
+      await client.query('ROLLBACK')
+      res.status(400).json({ error: 'Can only override availability for completion-based chores.' })
+      return
+    }
+
+    await client.query(
+      `DELETE FROM chore_completions
+       WHERE chore_id = $1
+       AND id = (
+         SELECT id FROM chore_completions
+         WHERE chore_id = $1
+         ORDER BY completed_at DESC
+         LIMIT 1
+       )`,
+      [id]
+    )
+
+    await client.query('COMMIT')
+    res.status(200).json({ message: 'Chore availability overridden.' })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    throw err
+  } finally {
+    client.release()
+  }
+})
+
 choresRouter.post('/:id/complete', async (req, res) => {
   const householdId = res.locals.auth?.householdId as string | undefined
   if (!householdId) {
