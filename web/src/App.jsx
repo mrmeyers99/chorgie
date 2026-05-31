@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom'
 import Register from './pages/Register.jsx'
 import Login from './pages/Login.jsx'
@@ -14,6 +14,10 @@ function Home() {
   const [kidName, setKidName] = useState('')
   const [avatarId, setAvatarId] = useState('corgi-1')
   const [loadingKids, setLoadingKids] = useState(false)
+
+  useEffect(() => {
+    void loadKids()
+  }, [])
 
   if (!userEmail) {
     return <Navigate to="/login" replace />
@@ -154,9 +158,6 @@ function Home() {
 
       <div style={{ marginTop: 24 }}>
         <h2>Kid profiles</h2>
-        <button type="button" onClick={() => void loadKids()}>
-          Refresh kid profiles
-        </button>
         {loadingKids ? (
           <p>Loading kids…</p>
         ) : kids.length ? (
