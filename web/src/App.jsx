@@ -79,6 +79,17 @@ function Home() {
     }
   }
 
+  async function handleDeleteKid(id) {
+    setStatus('')
+    try {
+      await api.deleteKid(id)
+      setStatus('Kid deactivated.')
+      await loadKids()
+    } catch (err) {
+      setStatus(err.message ?? 'Failed to deactivate kid.')
+    }
+  }
+
   async function handleExitAdminMode(e) {
     e.preventDefault()
     setStatus('')
@@ -200,11 +211,20 @@ function Home() {
         ) : kids.length ? (
           <ul className={styles.kidGrid}>
             {kids.map((kid) => (
-              <li key={kid.id} className={styles.kidCard}>
+              <li key={kid.id} className={`${styles.kidCard}${kid.is_active === false ? ` ${styles.kidCardInactive}` : ''}`}>
                 <span className={styles.kidAvatar}>
                   {AVATAR_EMOJI[kid.avatar_id] ?? '🐾'}
                 </span>
                 <span className={styles.kidName}>{kid.enc_display_name}</span>
+                {adminModeToken && kid.is_active !== false && (
+                  <button
+                    type="button"
+                    onClick={() => void handleDeleteKid(kid.id)}
+                    className={`${styles.btn} ${styles.btnDanger}`}
+                  >
+                    Delete
+                  </button>
+                )}
               </li>
             ))}
           </ul>

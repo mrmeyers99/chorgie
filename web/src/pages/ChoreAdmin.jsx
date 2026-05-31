@@ -65,8 +65,8 @@ export default function ChoreAdmin() {
     setForm((prev) => ({
       ...prev,
       [name]: value,
-      // Clear the recurrence rule when switching away from completion-based
-      ...(name === 'recurrence_type' && value !== 'completion-based'
+      // Clear the recurrence rule when switching to one-time
+      ...(name === 'recurrence_type' && value === 'one-time'
         ? { enc_recurrence_rule: '' }
         : {}),
     }))
@@ -149,17 +149,6 @@ export default function ChoreAdmin() {
     }
   }
 
-  async function handleDeleteKid(id) {
-    setStatus('')
-    try {
-      await api.deleteKid(id)
-      setStatus('Kid deactivated.')
-      await loadKids()
-    } catch (err) {
-      setStatus(err.message ?? 'Failed to deactivate kid.')
-    }
-  }
-
   return (
     <main className={styles.page}>
       <h1 className={styles.pageTitle}>🐾 Chore Admin</h1>
@@ -226,9 +215,9 @@ export default function ChoreAdmin() {
             </select>
           </div>
 
-          {form.recurrence_type === 'completion-based' && (
+          {(form.recurrence_type === 'completion-based' || form.recurrence_type === 'fixed') && (
             <div className={styles.formRow}>
-              <label htmlFor="enc_recurrence_rule">Days after last completion</label>
+              <label htmlFor="enc_recurrence_rule">Repeat every (days)</label>
               <input
                 id="enc_recurrence_rule"
                 name="enc_recurrence_rule"
@@ -330,41 +319,6 @@ export default function ChoreAdmin() {
                   </button>
                 )}
               </div>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <p className={styles.sectionTitle} style={{ marginTop: 32 }}>Kids</p>
-      {kids.length === 0 ? (
-        <p className={styles.loadingMsg}>No kids yet.</p>
-      ) : (
-        <ul className={styles.list}>
-          {kids.map((kid) => (
-            <li
-              key={kid.id}
-              className={`${styles.listItem}${kid.is_active === false ? ` ${styles.inactive}` : ''}`}
-            >
-              <div className={styles.listItemInfo}>
-                <div className={styles.listItemName}>
-                  {kid.enc_display_name}
-                  {kid.is_active === false && (
-                    <span className={styles.inactiveBadge}>inactive</span>
-                  )}
-                </div>
-                <div className={styles.listItemMeta}>{kid.avatar_id}</div>
-              </div>
-              {kid.is_active !== false && (
-                <div className={styles.listItemActions}>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteKid(kid.id)}
-                    className={`${styles.btn} ${styles.btnDanger}`}
-                  >
-                    Delete
-                  </button>
-                </div>
-              )}
             </li>
           ))}
         </ul>

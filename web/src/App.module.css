@@ -208,6 +208,24 @@
   word-break: break-word;
 }
 
+.btnDanger {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1.5px solid #fca5a5;
+}
+
+@media (prefers-color-scheme: dark) {
+  .btnDanger {
+    background: rgba(185, 28, 28, 0.15);
+    color: #fca5a5;
+    border-color: rgba(185, 28, 28, 0.4);
+  }
+}
+
+.kidCardInactive {
+  opacity: 0.5;
+}
+
 .emptyState {
   color: var(--text);
   font-size: 14px;
