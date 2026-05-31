@@ -64,8 +64,8 @@ export default function ChoreAdmin() {
     setForm((prev) => ({
       ...prev,
       [name]: value,
-      // Clear the recurrence rule when switching away from completion-based
-      ...(name === 'recurrence_type' && value !== 'completion-based'
+      // Clear the recurrence rule when switching to one-time
+      ...(name === 'recurrence_type' && value === 'one-time'
         ? { enc_recurrence_rule: '' }
         : {}),
     }))
@@ -220,7 +220,7 @@ export default function ChoreAdmin() {
             ))}
           </select>
         </div>
-        {form.recurrence_type === 'completion-based' && (
+        {(form.recurrence_type === 'completion-based' || form.recurrence_type === 'fixed') && (
           <div style={{ marginTop: 8 }}>
             <label htmlFor="enc_recurrence_rule">Days after last completion</label>
             <br />
