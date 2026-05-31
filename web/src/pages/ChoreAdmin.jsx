@@ -87,7 +87,7 @@ export default function ChoreAdmin() {
   function handleSelectAllKids(e) {
     setForm((prev) => ({
       ...prev,
-      eligible_kids: e.target.checked ? kids.map((k) => k.id) : [],
+      eligible_kids: e.target.checked ? activeKids.map((k) => k.id) : [],
     }))
   }
 
@@ -179,6 +179,8 @@ export default function ChoreAdmin() {
     return String(left.enc_name ?? '').localeCompare(String(right.enc_name ?? ''))
   })
 
+  const activeKids = kids.filter((k) => k.is_active !== false)
+
   return (
     <main className={styles.page}>
       <h1 className={styles.pageTitle}>🐾 Chore Admin</h1>
@@ -264,19 +266,19 @@ export default function ChoreAdmin() {
           <div className={styles.formRow}>
             <label>Eligible kids</label>
             <div className={styles.checkboxGroup}>
-              {kids.length === 0 ? (
+              {activeKids.length === 0 ? (
                 <span className={styles.emptyHint}>No kids added yet.</span>
               ) : (
                 <>
                   <label className={styles.checkboxLabel}>
                     <input
                       type="checkbox"
-                      checked={form.eligible_kids.length === kids.length && kids.length > 0}
+                      checked={form.eligible_kids.length === activeKids.length && activeKids.length > 0}
                       onChange={handleSelectAllKids}
                     />
                     Select all
                   </label>
-                  {kids.map((kid) => (
+                  {activeKids.map((kid) => (
                     <label key={kid.id} className={styles.checkboxLabel}>
                       <input
                         type="checkbox"
