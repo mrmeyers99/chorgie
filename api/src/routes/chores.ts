@@ -13,7 +13,7 @@ const createChoreSchema = z.object({
   reward_amount: z.number().nonnegative(),
   recurrence_type: z.enum(RECURRENCE_TYPES),
   enc_recurrence_rule: z.string().optional(),
-  assigned_to: z.string().uuid().nullable().optional(),
+  eligible_kids: z.array(z.string().uuid()).optional(),
 })
 
 const updateChoreSchema = z
@@ -23,7 +23,7 @@ const updateChoreSchema = z
     reward_amount: z.number().nonnegative().optional(),
     recurrence_type: z.enum(RECURRENCE_TYPES).optional(),
     enc_recurrence_rule: z.string().nullable().optional(),
-    assigned_to: z.string().uuid().nullable().optional(),
+    eligible_kids: z.array(z.string().uuid()).optional(),
     is_active: z.boolean().optional(),
   })
   .refine(
@@ -33,7 +33,7 @@ const updateChoreSchema = z
       value.reward_amount !== undefined ||
       value.recurrence_type !== undefined ||
       value.enc_recurrence_rule !== undefined ||
-      value.assigned_to !== undefined ||
+      value.eligible_kids !== undefined ||
       value.is_active !== undefined,
     { message: 'At least one field is required.' }
   )
@@ -46,23 +46,24 @@ type ChoreRow = {
   reward_amount: string
   recurrence_type: string
   enc_recurrence_rule: string | null
-  assigned_to: string | null
+  eligible_kids: string[]
   is_active: boolean
   created_at: string
 }
 
-async function assignedKidExistsInHousehold(
-  client: { query: (text: string, values: unknown[]) => Promise<{ rows: Array<unknown> }> },
-  assignedTo: string,
+async function allKidsExistInHousehold(
+  client: { query: (text: string, values: unknown[]) => Promise<{ rows: Array<{ count: string }> }> },
+  kidIds: string[],
   householdId: string
 ) {
+  if (kidIds.length === 0) return true
   const result = await client.query(
-    `SELECT 1
+    `SELECT COUNT(*) AS count
      FROM kid_profiles
-     WHERE id = $1 AND household_id = $2`,
-    [assignedTo, householdId]
+     WHERE id = ANY($1::uuid[]) AND household_id = $2`,
+    [kidIds, householdId]
   )
-  return Boolean(result.rows[0])
+  return Number(result.rows[0].count) === kidIds.length
 }
 
 choresRouter.get('/', async (_req, res) => {
@@ -75,11 +76,14 @@ choresRouter.get('/', async (_req, res) => {
   const client = await pool.connect()
   try {
     const result = await client.query<ChoreRow>(
-      `SELECT id, household_id, enc_name, enc_description, reward_amount,
-              recurrence_type, enc_recurrence_rule, assigned_to, is_active, created_at
-       FROM chore_definitions
-       WHERE household_id = $1
-       ORDER BY created_at ASC`,
+      `SELECT cd.id, cd.household_id, cd.enc_name, cd.enc_description, cd.reward_amount,
+              cd.recurrence_type, cd.enc_recurrence_rule, cd.is_active, cd.created_at,
+              COALESCE(ARRAY_AGG(cek.kid_id) FILTER (WHERE cek.kid_id IS NOT NULL), '{}') AS eligible_kids
+       FROM chore_definitions cd
+       LEFT JOIN chore_eligible_kids cek ON cek.chore_id = cd.id
+       WHERE cd.household_id = $1
+       GROUP BY cd.id
+       ORDER BY cd.created_at ASC`,
       [householdId]
     )
 
@@ -107,25 +111,26 @@ choresRouter.post('/', requireAdminMode, async (req, res) => {
     return
   }
 
-  const { enc_name, enc_description, reward_amount, recurrence_type, enc_recurrence_rule, assigned_to } =
+  const { enc_name, enc_description, reward_amount, recurrence_type, enc_recurrence_rule, eligible_kids } =
     parsed.data
 
   const client = await pool.connect()
   try {
-    if (assigned_to) {
-      const exists = await assignedKidExistsInHousehold(client, assigned_to, householdId)
-      if (!exists) {
-        res.status(400).json({ error: 'assigned_to must reference a kid in this household.' })
+    if (eligible_kids && eligible_kids.length > 0) {
+      const allExist = await allKidsExistInHousehold(client, eligible_kids, householdId)
+      if (!allExist) {
+        res.status(400).json({ error: 'eligible_kids must reference kids in this household.' })
         return
       }
     }
 
-    const result = await client.query<ChoreRow>(
+    await client.query('BEGIN')
+    const result = await client.query<Omit<ChoreRow, 'eligible_kids'>>(
       `INSERT INTO chore_definitions
-         (household_id, enc_name, enc_description, reward_amount, recurrence_type, enc_recurrence_rule, assigned_to)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+         (household_id, enc_name, enc_description, reward_amount, recurrence_type, enc_recurrence_rule)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, household_id, enc_name, enc_description, reward_amount,
-                 recurrence_type, enc_recurrence_rule, assigned_to, is_active, created_at`,
+                 recurrence_type, enc_recurrence_rule, is_active, created_at`,
       [
         householdId,
         enc_name,
@@ -133,11 +138,24 @@ choresRouter.post('/', requireAdminMode, async (req, res) => {
         reward_amount,
         recurrence_type,
         enc_recurrence_rule ?? null,
-        assigned_to ?? null,
       ]
     )
 
-    res.status(201).json(result.rows[0])
+    const chore = result.rows[0]
+
+    if (eligible_kids && eligible_kids.length > 0) {
+      const placeholders = eligible_kids.map((_, i) => `($1, $${i + 2})`).join(', ')
+      await client.query(
+        `INSERT INTO chore_eligible_kids (chore_id, kid_id) VALUES ${placeholders}`,
+        [chore.id, ...eligible_kids]
+      )
+    }
+
+    await client.query('COMMIT')
+    res.status(201).json({ ...chore, eligible_kids: eligible_kids ?? [] })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    throw err
   } finally {
     client.release()
   }
@@ -162,31 +180,32 @@ choresRouter.patch('/:id', requireAdminMode, async (req, res) => {
   }
 
   const { id } = req.params
-  const { enc_name, enc_description, reward_amount, recurrence_type, enc_recurrence_rule, assigned_to, is_active } =
+  const { enc_name, enc_description, reward_amount, recurrence_type, enc_recurrence_rule, eligible_kids, is_active } =
     parsed.data
 
   const client = await pool.connect()
   try {
-    if (assigned_to) {
-      const exists = await assignedKidExistsInHousehold(client, assigned_to, householdId)
-      if (!exists) {
-        res.status(400).json({ error: 'assigned_to must reference a kid in this household.' })
+    if (eligible_kids && eligible_kids.length > 0) {
+      const allExist = await allKidsExistInHousehold(client, eligible_kids, householdId)
+      if (!allExist) {
+        res.status(400).json({ error: 'eligible_kids must reference kids in this household.' })
         return
       }
     }
 
-    const result = await client.query<ChoreRow>(
+    await client.query('BEGIN')
+
+    const result = await client.query<Omit<ChoreRow, 'eligible_kids'>>(
       `UPDATE chore_definitions
        SET enc_name             = COALESCE($3, enc_name),
            enc_description      = CASE WHEN $4::boolean THEN $5 ELSE enc_description END,
            reward_amount        = COALESCE($6, reward_amount),
            recurrence_type      = COALESCE($7, recurrence_type),
            enc_recurrence_rule  = CASE WHEN $8::boolean THEN $9 ELSE enc_recurrence_rule END,
-           assigned_to          = CASE WHEN $10::boolean THEN $11 ELSE assigned_to END,
-           is_active            = COALESCE($12, is_active)
+           is_active            = COALESCE($10, is_active)
        WHERE id = $1 AND household_id = $2
        RETURNING id, household_id, enc_name, enc_description, reward_amount,
-                 recurrence_type, enc_recurrence_rule, assigned_to, is_active, created_at`,
+                 recurrence_type, enc_recurrence_rule, is_active, created_at`,
       [
         id,
         householdId,
@@ -197,19 +216,41 @@ choresRouter.patch('/:id', requireAdminMode, async (req, res) => {
         recurrence_type ?? null,
         enc_recurrence_rule !== undefined,
         enc_recurrence_rule ?? null,
-        assigned_to !== undefined,
-        assigned_to ?? null,
         is_active ?? null,
       ]
     )
 
     const chore = result.rows[0]
     if (!chore) {
+      await client.query('ROLLBACK')
       res.status(404).json({ error: 'Chore definition not found.' })
       return
     }
 
-    res.status(200).json(chore)
+    let finalEligibleKids: string[]
+    if (eligible_kids !== undefined) {
+      await client.query(`DELETE FROM chore_eligible_kids WHERE chore_id = $1`, [id])
+      if (eligible_kids.length > 0) {
+        const placeholders = eligible_kids.map((_, i) => `($1, $${i + 2})`).join(', ')
+        await client.query(
+          `INSERT INTO chore_eligible_kids (chore_id, kid_id) VALUES ${placeholders}`,
+          [id, ...eligible_kids]
+        )
+      }
+      finalEligibleKids = eligible_kids
+    } else {
+      const ekResult = await client.query<{ kid_id: string }>(
+        `SELECT kid_id FROM chore_eligible_kids WHERE chore_id = $1`,
+        [id]
+      )
+      finalEligibleKids = ekResult.rows.map((r) => r.kid_id)
+    }
+
+    await client.query('COMMIT')
+    res.status(200).json({ ...chore, eligible_kids: finalEligibleKids })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    throw err
   } finally {
     client.release()
   }

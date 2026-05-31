@@ -53,7 +53,7 @@ const sampleChore = {
   reward_amount: '2.50',
   recurrence_type: 'fixed',
   enc_recurrence_rule: 'enc-weekly-monday',
-  assigned_to: null,
+  eligible_kids: [],
   is_active: true,
   created_at: '2026-05-25T00:00:00.000Z',
 }
@@ -101,7 +101,10 @@ describe('POST /chores', () => {
 
   it('creates a chore definition with admin mode', async () => {
     const mockClient = await getMockClient()
-    mockClient.query.mockResolvedValueOnce({ rows: [sampleChore] })
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [sampleChore] }) // INSERT chore
+      .mockResolvedValueOnce({ rows: [] }) // COMMIT
 
     const res = await request(app)
       .post('/chores')
@@ -144,9 +147,9 @@ describe('POST /chores', () => {
     expect(res.status).toBe(400)
   })
 
-  it('rejects assigned_to from a different household', async () => {
+  it('rejects eligible_kids from a different household', async () => {
     const mockClient = await getMockClient()
-    mockClient.query.mockResolvedValueOnce({ rows: [] })
+    mockClient.query.mockResolvedValueOnce({ rows: [{ count: '0' }] })
 
     const res = await request(app)
       .post('/chores')
@@ -156,11 +159,11 @@ describe('POST /chores', () => {
         enc_name: 'enc-name',
         reward_amount: 2.5,
         recurrence_type: 'one-time',
-        assigned_to: '11111111-1111-4111-8111-111111111111',
+        eligible_kids: ['11111111-1111-4111-8111-111111111111'],
       })
 
     expect(res.status).toBe(400)
-    expect(res.body.error).toBe('assigned_to must reference a kid in this household.')
+    expect(res.body.error).toBe('eligible_kids must reference kids in this household.')
   })
 })
 
@@ -173,9 +176,11 @@ describe('PATCH /chores/:id', () => {
 
   it('updates a chore definition with admin mode', async () => {
     const mockClient = await getMockClient()
-    mockClient.query.mockResolvedValueOnce({
-      rows: [{ ...sampleChore, enc_name: 'enc-updated-name' }],
-    })
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ ...sampleChore, enc_name: 'enc-updated-name' }] }) // UPDATE
+      .mockResolvedValueOnce({ rows: [] }) // SELECT eligible_kids
+      .mockResolvedValueOnce({ rows: [] }) // COMMIT
 
     const res = await request(app)
       .patch('/chores/chore-1')
@@ -189,7 +194,10 @@ describe('PATCH /chores/:id', () => {
 
   it('returns 404 when chore does not exist', async () => {
     const mockClient = await getMockClient()
-    mockClient.query.mockResolvedValueOnce({ rows: [] })
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE (not found)
+      .mockResolvedValueOnce({ rows: [] }) // ROLLBACK
 
     const res = await request(app)
       .patch('/chores/nonexistent')
@@ -219,18 +227,18 @@ describe('PATCH /chores/:id', () => {
     expect(res.status).toBe(400)
   })
 
-  it('rejects assigned_to from a different household', async () => {
+  it('rejects eligible_kids from a different household', async () => {
     const mockClient = await getMockClient()
-    mockClient.query.mockResolvedValueOnce({ rows: [] })
+    mockClient.query.mockResolvedValueOnce({ rows: [{ count: '0' }] })
 
     const res = await request(app)
       .patch('/chores/chore-1')
       .set('Authorization', 'Bearer ' + makeAccessToken())
       .set('x-admin-mode-token', makeAdminModeToken())
-      .send({ assigned_to: '11111111-1111-4111-8111-111111111111' })
+      .send({ eligible_kids: ['11111111-1111-4111-8111-111111111111'] })
 
     expect(res.status).toBe(400)
-    expect(res.body.error).toBe('assigned_to must reference a kid in this household.')
+    expect(res.body.error).toBe('eligible_kids must reference kids in this household.')
   })
 })
 
