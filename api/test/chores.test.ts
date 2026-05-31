@@ -363,4 +363,41 @@ describe('POST /chores/:id/complete', () => {
 
     expect(res.status).toBe(401)
   })
+
+  it('deactivates ad-hoc chores after completion', async () => {
+    const kidId = '11111111-1111-4111-8111-111111111111'
+    const mockClient = await getMockClient()
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: kidId }] }) // kid lookup
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'chore-1',
+            household_id: 'household-uuid',
+            reward_amount: '2.50',
+            recurrence_type: 'ad-hoc',
+            enc_recurrence_rule: null,
+            eligible_kids: [kidId],
+            is_active: true,
+            last_completed_at: null,
+          },
+        ],
+      }) // chore lookup
+      .mockResolvedValueOnce({ rows: [{ completed_at: '2026-05-31T00:00:00.000Z' }] }) // completion insert
+      .mockResolvedValueOnce({ rows: [{ balance: '5.00' }] }) // balance update
+      .mockResolvedValueOnce({ rows: [] }) // deactivate chore
+      .mockResolvedValueOnce({ rows: [] }) // COMMIT
+
+    const res = await request(app)
+      .post('/chores/chore-1/complete')
+      .set('Authorization', 'Bearer ' + makeAccessToken())
+      .send({ kid_id: kidId })
+
+    expect(res.status).toBe(200)
+    expect(res.body.reward_amount).toBe('2.50')
+    expect(res.body.balance).toBe('5.00')
+    expect(mockClient.query.mock.calls[5]?.[0]).toContain('UPDATE chore_definitions')
+    expect(mockClient.query.mock.calls[5]?.[0]).toContain('SET is_active = false')
+  })
 })
