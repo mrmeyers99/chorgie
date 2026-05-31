@@ -350,8 +350,15 @@ function Home() {
 
       {selectedKid ? (
         <div className={styles.choresCard}>
-          <p className={styles.sectionTitle}>Chores for {selectedKid.enc_display_name}</p>
-          <p className={styles.balanceLine}>Balance: ${Number(selectedKid.balance ?? 0).toFixed(2)}</p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div>
+              <p className={styles.sectionTitle}>Chores for {selectedKid.enc_display_name}</p>
+              <p className={styles.balanceLine}>Balance: ${Number(selectedKid.balance ?? 0).toFixed(2)}</p>
+            </div>
+            <Link to={`/history?kid=${selectedKid.id}`} className={`${styles.btn} ${styles.btnSecondary}`}>
+              View History
+            </Link>
+          </div>
           {loadingChores ? (
             <p className={styles.emptyState}>Loading chores…</p>
           ) : visibleChores.length ? (

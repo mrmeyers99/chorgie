@@ -255,3 +255,79 @@ describe('PATCH /kids/:id', () => {
     expect(res.body.avatar_id).toBe('corgi-2')
   })
 })
+
+describe('GET /kids/:id/completions', () => {
+  beforeEach(async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockReset()
+    mockClient.release.mockReset()
+  })
+
+  it('returns 401 without auth token', async () => {
+    const res = await request(app).get('/kids/kid-1/completions')
+
+    expect(res.status).toBe(401)
+  })
+
+  it('returns 400 for invalid UUID format', async () => {
+    const res = await request(app)
+      .get('/kids/not-a-uuid/completions')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('Invalid kid ID format.')
+  })
+
+  it('returns 404 when kid not found in household', async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockResolvedValueOnce({ rows: [] })
+
+    const res = await request(app)
+      .get('/kids/00000000-0000-0000-0000-000000000000/completions')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+
+    expect(res.status).toBe(404)
+    expect(res.body.error).toBe('Kid profile not found.')
+  })
+
+  it('returns completions with expected shape and order', async () => {
+    const mockClient = await getMockClient()
+    const kidId = '11111111-1111-1111-1111-111111111111'
+    // Mock kid verification
+    mockClient.query.mockResolvedValueOnce({ rows: [{ id: kidId }] })
+    // Mock completions query
+    mockClient.query.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 'completion-2',
+          chore_id: 'chore-1',
+          chore_name: 'enc-chore-2',
+          reward_amount: '5.00',
+          completed_at: '2026-05-26T00:00:00.000Z',
+          paid_at: null,
+          payout_id: null,
+        },
+        {
+          id: 'completion-1',
+          chore_id: 'chore-1',
+          chore_name: 'enc-chore-1',
+          reward_amount: '2.50',
+          completed_at: '2026-05-25T00:00:00.000Z',
+          paid_at: '2026-05-27T00:00:00.000Z',
+          payout_id: 'payout-1',
+        },
+      ],
+    })
+
+    const res = await request(app)
+      .get(`/kids/${kidId}/completions`)
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.completions).toHaveLength(2)
+    expect(res.body.completions[0].id).toBe('completion-2')
+    expect(res.body.completions[0].chore_name).toBe('enc-chore-2')
+    expect(res.body.completions[0].paid_at).toBeNull()
+    expect(res.body.completions[1].paid_at).toBe('2026-05-27T00:00:00.000Z')
+  })
+})

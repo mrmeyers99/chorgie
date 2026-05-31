@@ -30,6 +30,10 @@ function PaymentHistory() {
 
     async function loadData() {
       setLoading(true)
+      setStatus('')
+      setSelectedKid(null)
+      setCompletions([])
+
       try {
         const kidsData = await api.getKids()
         const activeKids = (kidsData.kids ?? []).filter((kid) => kid.is_active !== false)
@@ -82,12 +86,14 @@ function PaymentHistory() {
 
     completions.forEach((completion) => {
       if (completion.paid_at) {
-        const existingGroup = groups.find((g) => g.payout_id === completion.payout_id)
+        const groupKey = completion.payout_id ?? completion.paid_at
+        const existingGroup = groups.find((g) => g.groupKey === groupKey)
         if (existingGroup) {
           existingGroup.completions.push(completion)
           existingGroup.total += parseFloat(completion.reward_amount)
         } else {
           groups.push({
+            groupKey,
             payout_id: completion.payout_id,
             paid_at: completion.paid_at,
             completions: [completion],
@@ -98,6 +104,9 @@ function PaymentHistory() {
         unpaid.push(completion)
       }
     })
+
+    // Sort payout groups by paid_at descending (most recent first)
+    groups.sort((a, b) => new Date(b.paid_at) - new Date(a.paid_at))
 
     return { groups, unpaid }
   }
@@ -112,7 +121,7 @@ function PaymentHistory() {
     <main className={styles.page}>
       <header className={styles.header}>
         <h1 className={styles.title}>Payment History</h1>
-        <button onClick={() => navigate('/')} className={styles.backButton}>
+        <button type="button" onClick={() => navigate('/')} className={styles.backButton}>
           ← Back to Home
         </button>
       </header>
@@ -199,7 +208,7 @@ function PaymentHistory() {
             <div className={styles.section}>
               <h3 className={styles.sectionTitle}>Payment History</h3>
               {payoutGroups.map((group) => (
-                <div key={group.payout_id} className={styles.payoutGroup}>
+                <div key={group.groupKey} className={styles.payoutGroup}>
                   <div className={styles.payoutHeader}>
                     <span className={styles.paidDate}>
                       Paid: {formatDate(group.paid_at)}
@@ -230,6 +239,8 @@ function PaymentHistory() {
             <p className={styles.emptyState}>No chores completed yet.</p>
           ) : null}
         </div>
+      ) : kids.length === 0 && !loading ? (
+        <p className={styles.emptyState}>No kid profiles found. Add a kid profile to get started.</p>
       ) : null}
     </main>
   )

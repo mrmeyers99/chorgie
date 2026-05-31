@@ -137,6 +137,14 @@ kidsRouter.get('/:id/completions', async (req, res) => {
   }
 
   const { id } = req.params
+
+  // Validate UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!uuidRegex.test(id)) {
+    res.status(400).json({ error: 'Invalid kid ID format.' })
+    return
+  }
+
   const client = await pool.connect()
   try {
     // Verify kid exists in household
@@ -168,7 +176,7 @@ kidsRouter.get('/:id/completions', async (req, res) => {
         cc.paid_at,
         cc.payout_id
        FROM chore_completions cc
-       JOIN chore_definitions cd ON cc.chore_id = cd.id
+       JOIN chore_definitions cd ON cc.chore_id = cd.id AND cc.household_id = cd.household_id
        WHERE cc.kid_id = $1 AND cc.household_id = $2
        ORDER BY cc.completed_at DESC`,
       [id, householdId]
