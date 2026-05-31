@@ -10,7 +10,7 @@ const emptyForm = {
   reward_amount: '',
   recurrence_type: 'one-time',
   enc_recurrence_rule: '',
-  assigned_to: '',
+  eligible_kids: [],
 }
 
 export default function ChoreAdmin() {
@@ -63,6 +63,25 @@ export default function ChoreAdmin() {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
+  function handleKidToggle(kidId) {
+    setForm((prev) => {
+      const already = prev.eligible_kids.includes(kidId)
+      return {
+        ...prev,
+        eligible_kids: already
+          ? prev.eligible_kids.filter((id) => id !== kidId)
+          : [...prev.eligible_kids, kidId],
+      }
+    })
+  }
+
+  function handleSelectAllKids(e) {
+    setForm((prev) => ({
+      ...prev,
+      eligible_kids: e.target.checked ? kids.map((k) => k.id) : [],
+    }))
+  }
+
   function startEdit(chore) {
     setEditingId(chore.id)
     setForm({
@@ -71,7 +90,7 @@ export default function ChoreAdmin() {
       reward_amount: chore.reward_amount ?? '',
       recurrence_type: chore.recurrence_type ?? 'one-time',
       enc_recurrence_rule: chore.enc_recurrence_rule ?? '',
-      assigned_to: chore.assigned_to ?? '',
+      eligible_kids: chore.eligible_kids ?? [],
     })
     setStatus('')
   }
@@ -89,10 +108,10 @@ export default function ChoreAdmin() {
       enc_name: form.enc_name,
       reward_amount: Number(form.reward_amount),
       recurrence_type: form.recurrence_type,
+      eligible_kids: form.eligible_kids,
     }
     if (form.enc_description) payload.enc_description = form.enc_description
     if (form.enc_recurrence_rule) payload.enc_recurrence_rule = form.enc_recurrence_rule
-    if (form.assigned_to) payload.assigned_to = form.assigned_to
 
     try {
       if (editingId) {
@@ -193,21 +212,35 @@ export default function ChoreAdmin() {
           />
         </div>
         <div style={{ marginTop: 8 }}>
-          <label htmlFor="assigned_to">Assign to kid</label>
-          <br />
-          <select
-            id="assigned_to"
-            name="assigned_to"
-            value={form.assigned_to}
-            onChange={handleChange}
-          >
-            <option value="">— Unassigned —</option>
-            {kids.map((kid) => (
-              <option key={kid.id} value={kid.id}>
-                {kid.enc_display_name}
-              </option>
-            ))}
-          </select>
+          <label>Eligible kids</label>
+          <div style={{ marginTop: 4 }}>
+            {kids.length === 0 ? (
+              <span style={{ color: '#888' }}>No kids added yet.</span>
+            ) : (
+              <>
+                <label style={{ display: 'block', marginBottom: 4 }}>
+                  <input
+                    type="checkbox"
+                    checked={form.eligible_kids.length === kids.length && kids.length > 0}
+                    onChange={handleSelectAllKids}
+                    style={{ marginRight: 6 }}
+                  />
+                  Select all
+                </label>
+                {kids.map((kid) => (
+                  <label key={kid.id} style={{ display: 'block', marginBottom: 2 }}>
+                    <input
+                      type="checkbox"
+                      checked={form.eligible_kids.includes(kid.id)}
+                      onChange={() => handleKidToggle(kid.id)}
+                      style={{ marginRight: 6 }}
+                    />
+                    {kid.enc_display_name}
+                  </label>
+                ))}
+              </>
+            )}
+          </div>
         </div>
         <div style={{ marginTop: 12 }}>
           <button type="submit">{editingId ? 'Save changes' : 'Add Chore'}</button>
