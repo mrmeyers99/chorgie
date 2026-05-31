@@ -322,6 +322,7 @@ describe('POST /chores/:id/complete', () => {
     expect(res.status).toBe(200)
     expect(res.body.reward_amount).toBe('2.50')
     expect(res.body.balance).toBe('5.00')
+    expect(mockClient.query.mock.calls[2]?.[0]).toContain('FOR UPDATE OF cd')
   })
 
   it('rejects completion when chore is not currently available', async () => {

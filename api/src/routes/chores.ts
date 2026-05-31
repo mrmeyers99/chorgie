@@ -414,7 +414,7 @@ choresRouter.post('/:id/complete', async (req, res) => {
          LIMIT 1
        ) lc ON true
        WHERE cd.id = $1 AND cd.household_id = $2
-       FOR UPDATE`,
+      FOR UPDATE OF cd`,
       [id, householdId]
     )
 
