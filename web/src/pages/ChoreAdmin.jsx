@@ -60,7 +60,15 @@ export default function ChoreAdmin() {
   }
 
   function handleChange(e) {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+    const { name, value } = e.target
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+      // Clear the recurrence rule when switching away from completion-based
+      ...(name === 'recurrence_type' && value !== 'completion-based'
+        ? { enc_recurrence_rule: '' }
+        : {}),
+    }))
   }
 
   function handleKidToggle(kidId) {
@@ -212,16 +220,22 @@ export default function ChoreAdmin() {
             ))}
           </select>
         </div>
-        <div style={{ marginTop: 8 }}>
-          <label htmlFor="enc_recurrence_rule">Recurrence rule</label>
-          <br />
-          <input
-            id="enc_recurrence_rule"
-            name="enc_recurrence_rule"
-            value={form.enc_recurrence_rule}
-            onChange={handleChange}
-          />
-        </div>
+        {form.recurrence_type === 'completion-based' && (
+          <div style={{ marginTop: 8 }}>
+            <label htmlFor="enc_recurrence_rule">Days after last completion</label>
+            <br />
+            <input
+              id="enc_recurrence_rule"
+              name="enc_recurrence_rule"
+              type="number"
+              min="1"
+              step="1"
+              value={form.enc_recurrence_rule}
+              onChange={handleChange}
+              required
+            />
+          </div>
+        )}
         <div style={{ marginTop: 8 }}>
           <label>Eligible kids</label>
           <div style={{ marginTop: 4 }}>
