@@ -207,6 +207,11 @@
   word-break: break-word;
 }
 
+.kidBalance {
+  font-size: 13px;
+  color: var(--text);
+}
+
 .btnDanger {
   background: #fef2f2;
   color: #b91c1c;
@@ -252,6 +257,11 @@
   text-align: left;
 }
 
+.balanceLine {
+  margin-top: 0;
+  color: var(--text);
+}
+
 .choreList {
   list-style: none;
   padding: 0;
@@ -266,6 +276,7 @@
   border-radius: 10px;
   padding: 12px;
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
 }

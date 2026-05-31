@@ -25,6 +25,7 @@ function Home() {
   const [chores, setChores] = useState([])
   const [loadingChores, setLoadingChores] = useState(false)
   const [selectedKidId, setSelectedKidId] = useState('')
+  const [completingChoreId, setCompletingChoreId] = useState('')
 
   useEffect(() => {
     void loadKids()
@@ -110,6 +111,26 @@ function Home() {
     setSelectedKidId(id)
   }
 
+  async function handleCompleteChore(choreId) {
+    if (!selectedKid) return
+    setStatus('')
+    setCompletingChoreId(choreId)
+    try {
+      const data = await api.completeChore(choreId, { kid_id: selectedKid.id })
+      await Promise.all([loadChores(), loadKids()])
+      const reward = Number(data.reward_amount)
+      setStatus(
+        Number.isFinite(reward)
+          ? `${selectedKid.enc_display_name} earned $${reward.toFixed(2)}!`
+          : 'Chore completed.'
+      )
+    } catch (err) {
+      setStatus(err.message ?? 'Failed to complete chore.')
+    } finally {
+      setCompletingChoreId('')
+    }
+  }
+
   async function handleExitAdminMode(e) {
     e.preventDefault()
     setStatus('')
@@ -136,6 +157,9 @@ function Home() {
   const visibleChores = selectedKid
     ? chores.filter((chore) => {
         if (chore.is_active === false) {
+          return false
+        }
+        if (chore.is_available === false) {
           return false
         }
         const eligibleKids = Array.isArray(chore.eligible_kids) ? chore.eligible_kids : []
@@ -252,6 +276,7 @@ function Home() {
                     {AVATAR_EMOJI[kid.avatar_id] ?? '🐾'}
                   </span>
                   <span className={styles.kidName}>{kid.enc_display_name}</span>
+                  <span className={styles.kidBalance}>${Number(kid.balance ?? 0).toFixed(2)}</span>
                 </button>
                 {adminModeToken && (
                   <button
@@ -275,6 +300,7 @@ function Home() {
       {selectedKid ? (
         <div className={styles.choresCard}>
           <p className={styles.sectionTitle}>Chores for {selectedKid.enc_display_name}</p>
+          <p className={styles.balanceLine}>Balance: ${Number(selectedKid.balance ?? 0).toFixed(2)}</p>
           {loadingChores ? (
             <p className={styles.emptyState}>Loading chores…</p>
           ) : visibleChores.length ? (
@@ -283,6 +309,14 @@ function Home() {
                 <li key={chore.id} className={styles.choreItem}>
                   <span className={styles.choreName}>{chore.enc_name}</span>
                   <span className={styles.choreMeta}>${chore.reward_amount}</span>
+                  <button
+                    type="button"
+                    onClick={() => void handleCompleteChore(chore.id)}
+                    className={`${styles.btn} ${styles.btnPrimary}`}
+                    disabled={completingChoreId === chore.id}
+                  >
+                    {completingChoreId === chore.id ? 'Completing…' : 'Complete'}
+                  </button>
                 </li>
               ))}
             </ul>
