@@ -1,0 +1,284 @@
+.page {
+  padding: 40px 24px 60px;
+  max-width: 680px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--accent);
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.backButton {
+  background: transparent;
+  color: var(--text);
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: background 0.15s;
+  font-family: var(--sans);
+}
+
+.backButton:hover {
+  background: var(--accent-bg);
+  color: var(--text-h);
+}
+
+.statusMsg {
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+  color: var(--text-h);
+  margin-bottom: 24px;
+}
+
+.kidSelector {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.sectionTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-h);
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.kidGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  list-style: none;
+  padding: 0;
+  text-align: center;
+}
+
+.kidCard {
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  padding: 20px 12px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.kidCard:hover {
+  border-color: var(--tan);
+  transform: translateY(-2px);
+  box-shadow:
+    rgba(44, 26, 14, 0.12) 0 6px 20px -2px,
+    rgba(44, 26, 14, 0.06) 0 2px 8px -1px;
+}
+
+.kidSelectBtn {
+  border: none;
+  background: transparent;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: inherit;
+  padding: 0;
+}
+
+.kidAvatar {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.kidName {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-h);
+  word-break: break-word;
+}
+
+.emptyState {
+  color: var(--text);
+  font-size: 14px;
+  padding: 24px 0;
+  text-align: center;
+}
+
+.historyContent {
+  text-align: left;
+}
+
+.kidInfo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--shadow);
+  margin-bottom: 24px;
+}
+
+.kidAvatarLarge {
+  font-size: 3.5rem;
+  line-height: 1;
+}
+
+.kidNameLarge {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-h);
+  margin: 0 0 4px;
+}
+
+.kidBalance {
+  font-size: 14px;
+  color: var(--text);
+  margin: 0;
+}
+
+.changeKidBtn {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border: 1.5px solid var(--accent-border);
+  padding: 9px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  margin-bottom: 24px;
+  font-family: var(--sans);
+}
+
+.changeKidBtn:hover {
+  opacity: 0.88;
+}
+
+.section {
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+  margin-bottom: 24px;
+}
+
+.section h3 {
+  margin-top: 0;
+}
+
+.completionsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.completionItem {
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.completionInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.choreName {
+  font-weight: 700;
+  color: var(--text-h);
+  font-size: 14px;
+}
+
+.completionDate {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.amount {
+  font-weight: 700;
+  color: var(--accent);
+  font-size: 15px;
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 1.5px solid var(--border);
+}
+
+.totalLabel {
+  font-weight: 700;
+  color: var(--text-h);
+  font-size: 15px;
+}
+
+.totalAmount {
+  font-weight: 700;
+  color: var(--accent);
+  font-size: 16px;
+}
+
+.payoutGroup {
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+}
+
+.payoutHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.paidDate {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.payoutTotal {
+  font-weight: 700;
+  color: var(--accent);
+  font-size: 16px;
+}

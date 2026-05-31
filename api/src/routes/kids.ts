@@ -129,6 +129,57 @@ kidsRouter.delete('/:id', requireAdminMode, async (req, res) => {
   }
 })
 
+kidsRouter.get('/:id/completions', async (req, res) => {
+  const householdId = res.locals.auth?.householdId as string | undefined
+  if (!householdId) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+
+  const { id } = req.params
+  const client = await pool.connect()
+  try {
+    // Verify kid exists in household
+    const kidResult = await client.query<{ id: string }>(
+      `SELECT id FROM kid_profiles WHERE id = $1 AND household_id = $2`,
+      [id, householdId]
+    )
+
+    if (!kidResult.rows[0]) {
+      res.status(404).json({ error: 'Kid profile not found.' })
+      return
+    }
+
+    const result = await client.query<{
+      id: string
+      chore_id: string
+      chore_name: string
+      reward_amount: string
+      completed_at: string
+      paid_at: string | null
+      payout_id: string | null
+    }>(
+      `SELECT
+        cc.id,
+        cc.chore_id,
+        cd.enc_name as chore_name,
+        cc.reward_amount,
+        cc.completed_at,
+        cc.paid_at,
+        cc.payout_id
+       FROM chore_completions cc
+       JOIN chore_definitions cd ON cc.chore_id = cd.id
+       WHERE cc.kid_id = $1 AND cc.household_id = $2
+       ORDER BY cc.completed_at DESC`,
+      [id, householdId]
+    )
+
+    res.status(200).json({ completions: result.rows })
+  } finally {
+    client.release()
+  }
+})
+
 kidsRouter.patch('/:id', requireAdminMode, async (req, res) => {
   const householdId = res.locals.auth?.householdId as string | undefined
   if (!householdId) {

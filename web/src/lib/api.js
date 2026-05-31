@@ -163,4 +163,8 @@ export const api = {
     request(`/payouts/${id}`, {
       headers: { ...getAuthHeader(), ...getAdminModeHeader() },
     }),
+  getKidCompletions: (kidId) =>
+    request(`/kids/${kidId}/completions`, {
+      headers: getAuthHeader(),
+    }),
 }

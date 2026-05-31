@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom'
 import Register from './pages/Register.jsx'
 import Login from './pages/Login.jsx'
 import ChoreAdmin from './pages/ChoreAdmin.jsx'
+import PaymentHistory from './pages/PaymentHistory.jsx'
 import { api } from './lib/api.js'
 import styles from './App.module.css'
 
@@ -249,6 +250,9 @@ function Home() {
               <Link to="/chores" className={`${styles.btn} ${styles.btnSecondary}`}>
                 Manage chores
               </Link>
+              <Link to="/history" className={`${styles.btn} ${styles.btnSecondary}`}>
+                Payment history
+              </Link>
               <a
                 href="/#exit-admin-mode"
                 onClick={handleExitAdminMode}
@@ -420,6 +424,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/chores" element={<ChoreAdmin />} />
+      <Route path="/history" element={<PaymentHistory />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
