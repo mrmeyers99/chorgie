@@ -7,12 +7,20 @@ import PaymentHistory from './pages/PaymentHistory.jsx'
 import { api } from './lib/api.js'
 import styles from './App.module.css'
 
-const AVATAR_EMOJI = {
-  'corgi-1': '🐕',
-  'corgi-2': '🐶',
-  'corgi-3': '🦮',
-  'corgi-4': '🐾',
-}
+const AVATARS = [
+  { id: 'corgi-1',  label: 'Corgi #1'  },
+  { id: 'corgi-2',  label: 'Corgi #2'  },
+  { id: 'corgi-3',  label: 'Corgi #3'  },
+  { id: 'corgi-4',  label: 'Corgi #4'  },
+  { id: 'corgi-5',  label: 'Corgi #5'  },
+  { id: 'corgi-6',  label: 'Corgi #6'  },
+  { id: 'corgi-7',  label: 'Corgi #7'  },
+  { id: 'corgi-8',  label: 'Corgi #8'  },
+  { id: 'corgi-9',  label: 'Corgi #9'  },
+  { id: 'corgi-10', label: 'Corgi #10' },
+  { id: 'corgi-11', label: 'Corgi #11' },
+  { id: 'corgi-12', label: 'Corgi #12' },
+]
 
 function Home() {
   const navigate = useNavigate()
@@ -298,17 +306,21 @@ function Home() {
                 />
               </div>
               <div className={styles.formRow}>
-                <label htmlFor="avatarId">Avatar</label>
-                <select
-                  id="avatarId"
-                  value={avatarId}
-                  onChange={(e) => setAvatarId(e.target.value)}
-                >
-                  <option value="corgi-1">🐕 Corgi 1</option>
-                  <option value="corgi-2">🐶 Corgi 2</option>
-                  <option value="corgi-3">🦮 Corgi 3</option>
-                  <option value="corgi-4">🐾 Corgi 4</option>
-                </select>
+                <label id="avatar-picker-label">Avatar</label>
+                <div className={styles.avatarPicker} aria-labelledby="avatar-picker-label">
+                  {AVATARS.map(({ id, label }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setAvatarId(id)}
+                      className={`${styles.avatarOption}${avatarId === id ? ` ${styles.avatarOptionSelected}` : ''}`}
+                      title={label}
+                      aria-pressed={avatarId === id}
+                    >
+                      <img src={`/avatars/${id}.png`} alt={label} />
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className={styles.formActions}>
                 <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
@@ -335,9 +347,12 @@ function Home() {
                   onClick={() => handleKidSelect(kid.id)}
                   className={`${styles.kidSelectBtn}${selectedKidId === kid.id ? ` ${styles.kidSelectBtnActive}` : ''}`}
                 >
-                  <span className={styles.kidAvatar}>
-                    {AVATAR_EMOJI[kid.avatar_id] ?? '🐾'}
-                  </span>
+                  <img
+                    src={`/avatars/${kid.avatar_id}.png`}
+                    alt={`${kid.enc_display_name}'s avatar`}
+                    className={styles.kidAvatar}
+                    onError={(e) => { e.currentTarget.src = '/avatars/corgi-1.png' }}
+                  />
                   <span className={styles.kidName}>{kid.enc_display_name}</span>
                   <span className={styles.kidBalance}>${Number(kid.balance ?? 0).toFixed(2)}</span>
                 </button>
