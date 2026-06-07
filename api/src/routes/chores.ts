@@ -51,6 +51,7 @@ type ChoreRow = {
   is_available: boolean
   last_completed_at: string | null
   override_available_until: string | null
+  next_available_at: string | null
   created_at: string
 }
 
@@ -64,6 +65,7 @@ type ChoreAvailabilityRow = {
   is_active: boolean
   last_completed_at: string | null
   override_available_until: string | null
+  next_available_at: string | null
 }
 
 const completeChoreSchema = z.object({
@@ -140,7 +142,8 @@ choresRouter.get('/', async (_req, res) => {
   try {
     const result = await client.query<ChoreRow>(
       `SELECT cd.id, cd.household_id, cd.enc_name, cd.enc_description, cd.reward_amount,
-              cd.recurrence_type, cd.enc_recurrence_rule, cd.is_active, cd.override_available_until, cd.created_at,
+              cd.recurrence_type, cd.enc_recurrence_rule, cd.is_active, cd.override_available_until,
+              cd.next_available_at, cd.created_at,
               COALESCE(
                 (SELECT ARRAY_AGG(cek.kid_id) FROM chore_eligible_kids cek WHERE cek.chore_id = cd.id),
                 '{}'
@@ -555,6 +558,21 @@ choresRouter.post('/:id/complete', async (req, res) => {
          SET is_active = false
          WHERE id = $1 AND household_id = $2`,
         [chore.id, householdId]
+      )
+    } else if (chore.recurrence_type === 'completion-based') {
+      // Calculate next available time for completion-based chores
+      const recurrenceDays = getRecurrenceDays(chore.enc_recurrence_rule)
+      const completedAt = new Date(completionResult.rows[0]?.completed_at)
+      const nextAvailableAt = recurrenceDays
+        ? new Date(completedAt.getTime() + recurrenceDays * 24 * 60 * 60 * 1000)
+        : null
+
+      // Clear any override and set next_available_at when the chore is completed
+      await client.query(
+        `UPDATE chore_definitions
+         SET override_available_until = NULL, next_available_at = $3
+         WHERE id = $1 AND household_id = $2`,
+        [chore.id, householdId, nextAvailableAt?.toISOString() ?? null]
       )
     } else {
       // Clear any override when the chore is completed
