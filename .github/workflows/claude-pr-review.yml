@@ -1,0 +1,53 @@
+name: Claude PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    name: Claude Code Review
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v44
+        with:
+          files: |
+            **/*.ts
+            **/*.js
+            **/*.tsx
+            **/*.jsx
+            **/*.json
+            **/*.yml
+            **/*.yaml
+
+      - name: Claude PR Review
+        if: steps.changed-files.outputs.any_changed == 'true'
+        uses: anthropics/anthropic-code-review-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          model: claude-sonnet-4.5-20250929
+          max_tokens: 4096
+          review_instructions: |
+            Please review this pull request with focus on:
+            - Code quality and best practices
+            - Potential bugs or issues
+            - Performance considerations
+            - Security vulnerabilities
+            - TypeScript/JavaScript specific concerns
+            - Testing coverage
+
+            This is a Node.js monorepo with API and web workspaces.
+            Be constructive and specific in your feedback.
