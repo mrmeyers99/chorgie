@@ -283,8 +283,8 @@ function Home() {
                 />
               </div>
               <div className={styles.formRow}>
-                <label>Avatar</label>
-                <div className={styles.avatarPicker}>
+                <label id="avatar-picker-label">Avatar</label>
+                <div className={styles.avatarPicker} aria-labelledby="avatar-picker-label">
                   {AVATARS.map(({ id, label }) => (
                     <button
                       key={id}
@@ -292,6 +292,7 @@ function Home() {
                       onClick={() => setAvatarId(id)}
                       className={`${styles.avatarOption}${avatarId === id ? ` ${styles.avatarOptionSelected}` : ''}`}
                       title={label}
+                      aria-pressed={avatarId === id}
                     >
                       <img src={`/avatars/${id}.png`} alt={label} />
                     </button>
@@ -327,6 +328,7 @@ function Home() {
                     src={`/avatars/${kid.avatar_id}.png`}
                     alt={`${kid.enc_display_name}'s avatar`}
                     className={styles.kidAvatar}
+                    onError={(e) => { e.currentTarget.src = '/avatars/corgi-1.png' }}
                   />
                   <span className={styles.kidName}>{kid.enc_display_name}</span>
                   <span className={styles.kidBalance}>${Number(kid.balance ?? 0).toFixed(2)}</span>
