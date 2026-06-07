@@ -18,8 +18,8 @@ const AVATARS = [
   { id: 'corgi-8',  label: 'Corgi #8'  },
   { id: 'corgi-9',  label: 'Corgi #9'  },
   { id: 'corgi-10', label: 'Corgi #10' },
+  { id: 'corgi-11', label: 'Corgi #11' },
   { id: 'corgi-12', label: 'Corgi #12' },
-  { id: 'corgi-15', label: 'Corgi #15' },
 ]
 
 function Home() {
