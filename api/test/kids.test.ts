@@ -222,11 +222,82 @@ describe('DELETE /kids/:id', () => {
   })
 })
 
+describe('PATCH /kids/:id/avatar', () => {
+  beforeEach(async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockReset()
+    mockClient.release.mockReset()
+  })
+
+  it('updates avatar without admin mode', async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 'kid-1',
+          enc_display_name: 'enc-name',
+          avatar_id: 'corgi-3',
+          sort_order: 0,
+          balance: '0.00',
+          is_active: true,
+          created_at: '2026-05-25T00:00:00.000Z',
+        },
+      ],
+    })
+
+    const res = await request(app)
+      .patch('/kids/kid-1/avatar')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .send({ avatar_id: 'corgi-3' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.avatar_id).toBe('corgi-3')
+  })
+
+  it('returns 404 when kid not found', async () => {
+    const mockClient = await getMockClient()
+    mockClient.query.mockResolvedValueOnce({ rows: [] })
+
+    const res = await request(app)
+      .patch('/kids/nonexistent/avatar')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .send({ avatar_id: 'corgi-2' })
+
+    expect(res.status).toBe(404)
+  })
+
+  it('requires authorization', async () => {
+    const res = await request(app)
+      .patch('/kids/kid-1/avatar')
+      .send({ avatar_id: 'corgi-2' })
+
+    expect(res.status).toBe(401)
+  })
+
+  it('validates avatar_id', async () => {
+    const res = await request(app)
+      .patch('/kids/kid-1/avatar')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .send({ avatar_id: '' })
+
+    expect(res.status).toBe(400)
+  })
+})
+
 describe('PATCH /kids/:id', () => {
   beforeEach(async () => {
     const mockClient = await getMockClient()
     mockClient.query.mockReset()
     mockClient.release.mockReset()
+  })
+
+  it('requires admin mode token', async () => {
+    const res = await request(app)
+      .patch('/kids/kid-1')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .send({ avatar_id: 'corgi-2', sort_order: 1 })
+
+    expect(res.status).toBe(403)
   })
 
   it('updates a kid profile with admin mode', async () => {

@@ -117,6 +117,12 @@ export const api = {
       headers: { ...getAuthHeader(), ...getAdminModeHeader() },
       body: JSON.stringify(payload),
     }),
+  updateKidAvatar: (id, payload) =>
+    request(`/kids/${id}/avatar`, {
+      method: 'PATCH',
+      headers: getAuthHeader(),
+      body: JSON.stringify(payload),
+    }),
   deleteKid: (id) =>
     request(`/kids/${id}`, {
       method: 'DELETE',

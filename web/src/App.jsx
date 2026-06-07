@@ -38,6 +38,8 @@ function Home() {
   const [payoutNotes, setPayoutNotes] = useState('')
   const [showPayoutDialog, setShowPayoutDialog] = useState(false)
   const [payoutKidId, setPayoutKidId] = useState('')
+  const [showAvatarDialog, setShowAvatarDialog] = useState(false)
+  const [selectedAvatar, setSelectedAvatar] = useState('corgi-1')
 
   useEffect(() => {
     void loadKids()
@@ -186,6 +188,30 @@ function Home() {
     setShowPayoutDialog(false)
     setPayoutNotes('')
     setPayoutKidId('')
+  }
+
+  function handleOpenAvatarDialog() {
+    if (!selectedKid) return
+    setSelectedAvatar(selectedKid.avatar_id)
+    setShowAvatarDialog(true)
+  }
+
+  async function handleSaveAvatar(e) {
+    e.preventDefault()
+    if (!selectedKid) return
+    setStatus('')
+    try {
+      await api.updateKidAvatar(selectedKid.id, { avatar_id: selectedAvatar })
+      setStatus(`Avatar updated for ${selectedKid.enc_display_name}!`)
+      setShowAvatarDialog(false)
+      await loadKids()
+    } catch (err) {
+      setStatus(err.message ?? 'Failed to update avatar.')
+    }
+  }
+
+  function handleCancelAvatar() {
+    setShowAvatarDialog(false)
   }
 
   async function handleLogout(e) {
@@ -393,9 +419,18 @@ function Home() {
               <p className={styles.sectionTitle}>Chores for {selectedKid.enc_display_name}</p>
               <p className={styles.balanceLine}>Balance: ${Number(selectedKid.balance ?? 0).toFixed(2)}</p>
             </div>
-            <Link to={`/history?kid=${selectedKid.id}`} className={`${styles.btn} ${styles.btnSecondary}`}>
-              View History
-            </Link>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={handleOpenAvatarDialog}
+                className={`${styles.btn} ${styles.btnSecondary}`}
+              >
+                Change Avatar
+              </button>
+              <Link to={`/history?kid=${selectedKid.id}`} className={`${styles.btn} ${styles.btnSecondary}`}>
+                View History
+              </Link>
+            </div>
           </div>
           {loadingChores ? (
             <p className={styles.emptyState}>Loading chores…</p>
@@ -478,6 +513,45 @@ function Home() {
                 <button
                   type="button"
                   onClick={handleCancelPayout}
+                  className={`${styles.btn} ${styles.btnGhost}`}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showAvatarDialog && selectedKid && (
+        <div className={styles.modal}>
+          <div className={styles.modalContent}>
+            <form onSubmit={handleSaveAvatar}>
+              <h2>Change Avatar for {selectedKid.enc_display_name}</h2>
+              <div className={styles.formRow}>
+                <label id="avatar-dialog-label">Select your avatar</label>
+                <div className={styles.avatarPicker} aria-labelledby="avatar-dialog-label">
+                  {AVATARS.map(({ id, label }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setSelectedAvatar(id)}
+                      className={`${styles.avatarOption}${selectedAvatar === id ? ` ${styles.avatarOptionSelected}` : ''}`}
+                      title={label}
+                      aria-pressed={selectedAvatar === id}
+                    >
+                      <img src={`/avatars/${id}.png`} alt={label} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className={styles.formActions}>
+                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
+                  Save Avatar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelAvatar}
                   className={`${styles.btn} ${styles.btnGhost}`}
                 >
                   Cancel

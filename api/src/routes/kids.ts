@@ -188,6 +188,60 @@ kidsRouter.get('/:id/completions', async (req, res) => {
   }
 })
 
+kidsRouter.patch('/:id/avatar', async (req, res) => {
+  const householdId = res.locals.auth?.householdId as string | undefined
+  if (!householdId) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+
+  const avatarSchema = z.object({
+    avatar_id: z.string().min(1).max(100),
+  })
+
+  const parsed = avatarSchema.safeParse(req.body)
+  if (!parsed.success) {
+    const flat = parsed.error.flatten()
+    const message =
+      flat.formErrors[0] ??
+      Object.values(flat.fieldErrors).flat()[0] ??
+      'Invalid request'
+    res.status(400).json({ error: message })
+    return
+  }
+
+  const { id } = req.params
+  const { avatar_id } = parsed.data
+  const client = await pool.connect()
+  try {
+    const result = await client.query<{
+      id: string
+      enc_display_name: string
+      avatar_id: string
+      sort_order: number
+      balance: string
+      is_active: boolean
+      created_at: string
+    }>(
+      `UPDATE kid_profiles
+       SET avatar_id = $3
+       WHERE id = $1 AND household_id = $2
+       RETURNING id, enc_display_name, avatar_id, sort_order, balance, is_active, created_at`,
+      [id, householdId, avatar_id]
+    )
+
+    const kid = result.rows[0]
+    if (!kid) {
+      res.status(404).json({ error: 'Kid profile not found.' })
+      return
+    }
+
+    res.status(200).json(kid)
+  } finally {
+    client.release()
+  }
+})
+
 kidsRouter.patch('/:id', requireAdminMode, async (req, res) => {
   const householdId = res.locals.auth?.householdId as string | undefined
   if (!householdId) {
