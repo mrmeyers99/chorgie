@@ -364,7 +364,9 @@ export default function ChoreAdmin() {
                     >
                       Deactivate
                     </button>
-                    {chore.recurrence_type === 'completion-based' && !chore.is_available && (
+                    {chore.recurrence_type === 'completion-based' &&
+                     !chore.is_available &&
+                     !chore.override_available_until && (
                       <button
                         type="button"
                         onClick={() => handleOverrideAvailability(chore.id)}
