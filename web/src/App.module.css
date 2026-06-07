@@ -281,6 +281,16 @@
   gap: 8px;
 }
 
+.choreItemDisabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.choreItemDisabled .choreName,
+.choreItemDisabled .choreMeta {
+  color: var(--text);
+}
+
 .choreName {
   font-weight: 700;
   color: var(--text-h);

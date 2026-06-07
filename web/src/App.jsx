@@ -204,6 +204,29 @@ function Home() {
       })
     : []
 
+  // Upcoming chores: completion-based chores that are not yet available but will be soon
+  const upcomingChores = selectedKid
+    ? chores.filter((chore) => {
+        if (chore.is_active === false) {
+          return false
+        }
+        if (chore.recurrence_type !== 'completion-based') {
+          return false
+        }
+        if (chore.is_available === true) {
+          return false
+        }
+        const eligibleKids = Array.isArray(chore.eligible_kids) ? chore.eligible_kids : []
+        return eligibleKids.length === 0 || eligibleKids.includes(selectedKid.id)
+      }).sort((a, b) => {
+        // Sort by next_available_at, showing soonest first
+        if (!a.next_available_at && !b.next_available_at) return 0
+        if (!a.next_available_at) return 1
+        if (!b.next_available_at) return -1
+        return new Date(a.next_available_at).getTime() - new Date(b.next_available_at).getTime()
+      })
+    : []
+
   return (
     <main className={styles.page}>
       <header className={styles.appHeader}>
@@ -362,22 +385,51 @@ function Home() {
           {loadingChores ? (
             <p className={styles.emptyState}>Loading chores…</p>
           ) : visibleChores.length ? (
-            <ul className={styles.choreList}>
-              {visibleChores.map((chore) => (
-                <li key={chore.id} className={styles.choreItem}>
-                  <span className={styles.choreName}>{chore.enc_name}</span>
-                  <span className={styles.choreMeta}>${chore.reward_amount}</span>
-                  <button
-                    type="button"
-                    onClick={() => void handleCompleteChore(chore.id)}
-                    className={`${styles.btn} ${styles.btnPrimary}`}
-                    disabled={completingChoreId === chore.id}
-                  >
-                    {completingChoreId === chore.id ? 'Completing…' : 'Complete'}
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className={styles.choreList}>
+                {visibleChores.map((chore) => (
+                  <li key={chore.id} className={styles.choreItem}>
+                    <span className={styles.choreName}>{chore.enc_name}</span>
+                    <span className={styles.choreMeta}>${chore.reward_amount}</span>
+                    <button
+                      type="button"
+                      onClick={() => void handleCompleteChore(chore.id)}
+                      className={`${styles.btn} ${styles.btnPrimary}`}
+                      disabled={completingChoreId === chore.id}
+                    >
+                      {completingChoreId === chore.id ? 'Completing…' : 'Complete'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {upcomingChores.length > 0 && (
+                <>
+                  <p className={styles.sectionTitle} style={{ marginTop: '24px' }}>Upcoming Chores</p>
+                  <ul className={styles.choreList}>
+                    {upcomingChores.map((chore) => (
+                      <li key={chore.id} className={`${styles.choreItem} ${styles.choreItemDisabled}`}>
+                        <span className={styles.choreName}>{chore.enc_name}</span>
+                        <span className={styles.choreMeta}>
+                          ${chore.reward_amount}
+                          {chore.next_available_at && (
+                            <span style={{ marginLeft: '8px', fontSize: '0.85em' }}>
+                              (Available {new Date(chore.next_available_at).toLocaleDateString()})
+                            </span>
+                          )}
+                        </span>
+                        <button
+                          type="button"
+                          className={`${styles.btn} ${styles.btnPrimary}`}
+                          disabled
+                        >
+                          Not Yet
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </>
           ) : (
             <p className={styles.emptyState}>No chores are available right now.</p>
           )}
