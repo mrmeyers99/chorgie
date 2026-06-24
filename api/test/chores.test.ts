@@ -302,7 +302,7 @@ describe('POST /chores/:id/complete', () => {
             id: 'chore-1',
             household_id: 'household-uuid',
             reward_amount: '2.50',
-            recurrence_type: 'completion-based',
+            recurrence_type: 'recurring',
             enc_recurrence_rule: '2',
             eligible_kids: [kidId],
             is_active: true,
@@ -337,7 +337,7 @@ describe('POST /chores/:id/complete', () => {
             id: 'chore-1',
             household_id: 'household-uuid',
             reward_amount: '2.50',
-            recurrence_type: 'completion-based',
+            recurrence_type: 'recurring',
             enc_recurrence_rule: '3',
             eligible_kids: [kidId],
             is_active: true,
@@ -427,7 +427,7 @@ describe('POST /chores/:id/override-availability', () => {
           {
             id: 'chore-1',
             household_id: 'household-uuid',
-            recurrence_type: 'completion-based',
+            recurrence_type: 'recurring',
             enc_recurrence_rule: '3',
             is_active: true,
             last_completed_at: new Date().toISOString(),
@@ -458,7 +458,7 @@ describe('POST /chores/:id/override-availability', () => {
           {
             id: 'chore-1',
             household_id: 'household-uuid',
-            recurrence_type: 'completion-based',
+            recurrence_type: 'recurring',
             enc_recurrence_rule: '3',
             is_active: false,
             last_completed_at: new Date().toISOString(),
@@ -476,7 +476,7 @@ describe('POST /chores/:id/override-availability', () => {
     expect(res.body.error).toBe('Cannot override availability for inactive chores.')
   })
 
-  it('rejects override for non-completion-based chores', async () => {
+  it('rejects override for non-recurring chores', async () => {
     const mockClient = await getMockClient()
     mockClient.query
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
@@ -500,7 +500,7 @@ describe('POST /chores/:id/override-availability', () => {
       .set('x-admin-mode-token', makeAdminModeToken())
 
     expect(res.status).toBe(400)
-    expect(res.body.error).toBe('Can only override availability for completion-based chores.')
+    expect(res.body.error).toBe('Can only override availability for recurring chores.')
   })
 
   it('requires authentication', async () => {
