@@ -5,7 +5,7 @@ import { requireAdminMode } from '../middleware/admin.js'
 
 export const choresRouter = Router()
 
-const RECURRENCE_TYPES = ['ad-hoc', 'completion-based'] as const
+const RECURRENCE_TYPES = ['ad-hoc', 'recurring'] as const
 
 const createChoreSchema = z.object({
   enc_name: z.string().min(1),
@@ -103,7 +103,7 @@ function isChoreCurrentlyAvailable(chore: {
     return false
   }
 
-  if (chore.recurrence_type === 'completion-based') {
+  if (chore.recurrence_type === 'recurring') {
     const recurrenceDays = getRecurrenceDays(chore.enc_recurrence_rule)
     if (!recurrenceDays) {
       return false
@@ -152,7 +152,7 @@ choresRouter.get('/', async (_req, res) => {
               CASE
                 WHEN cd.is_active = false THEN false
                 WHEN cd.override_available_until IS NOT NULL AND NOW() <= cd.override_available_until THEN true
-                WHEN cd.recurrence_type = 'completion-based'
+                WHEN cd.recurrence_type = 'recurring'
                   THEN lc.completed_at IS NULL OR (
                     CASE
                       WHEN cd.enc_recurrence_rule ~ '^[1-9][0-9]*$'
@@ -415,9 +415,9 @@ choresRouter.post('/:id/override-availability', requireAdminMode, async (req, re
       return
     }
 
-    if (chore.recurrence_type !== 'completion-based') {
+    if (chore.recurrence_type !== 'recurring') {
       await client.query('ROLLBACK')
-      res.status(400).json({ error: 'Can only override availability for completion-based chores.' })
+      res.status(400).json({ error: 'Can only override availability for recurring chores.' })
       return
     }
 
