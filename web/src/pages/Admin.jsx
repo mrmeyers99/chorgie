@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { api } from '../lib/api.js'
 import styles from '../App.module.css'
 
@@ -19,7 +19,6 @@ const AVATARS = [
 ]
 
 export default function Admin() {
-  const navigate = useNavigate()
   const userEmail = sessionStorage.getItem('userEmail')
   const [pin, setPin] = useState('')
   const [kidName, setKidName] = useState('')
