@@ -236,7 +236,7 @@ function Home() {
           </ul>
         ) : (
           <p className={styles.emptyState}>
-            No kid profiles yet. Enter admin mode to add one.
+            No kid profiles yet. Visit the <Link to="/admin">Admin page</Link> to add one.
           </p>
         )}
       </div>

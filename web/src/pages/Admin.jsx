@@ -118,13 +118,13 @@ export default function Admin() {
               <Link to="/history" className={`${styles.btn} ${styles.btnSecondary}`}>
                 Payment history
               </Link>
-              <a
-                href="/#exit-admin-mode"
+              <button
+                type="button"
                 onClick={handleExitAdminMode}
                 className={`${styles.btn} ${styles.btnGhost}`}
               >
                 Exit Admin Mode
-              </a>
+              </button>
             </div>
 
             <form onSubmit={handleCreateKid}>
