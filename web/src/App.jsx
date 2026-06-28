@@ -149,13 +149,13 @@ function Home() {
       })
     : []
 
-  // Upcoming chores: completion-based chores that are not yet available but will be soon
+  // Upcoming chores: recurring chores that are not yet available but will be soon
   const upcomingChores = selectedKid
     ? chores.filter((chore) => {
         if (chore.is_active === false) {
           return false
         }
-        if (chore.recurrence_type !== 'completion-based') {
+        if (chore.recurrence_type !== 'recurring') {
           return false
         }
         if (chore.is_available === true) {
