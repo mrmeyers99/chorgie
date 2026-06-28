@@ -1,0 +1,58 @@
+{
+  "name": "Chorgie Dev",
+
+  // Official Node.js 22 devcontainer base (Debian Bookworm).
+  // The project's own Dockerfile (node:20-bookworm-slim) is for production
+  // compose services; this image is only for the devcontainer shell.
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+
+  // Run as root so the ~/.claude bind mount lands at /root/.claude without
+  // any permission gymnastics.
+  "remoteUser": "root",
+
+  "features": {
+    // Mounts the host Docker socket into the container so `docker` and
+    // `docker compose` work — required for running compose.yml services.
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+  },
+
+  "mounts": [
+    // Carry host Claude settings, memory, and auth into the container.
+    "source=${localEnv:HOME}/.claude,target=/root/.claude,type=bind,consistency=cached"
+  ],
+
+  "containerEnv": {
+    // Pass host API key through so Claude can authenticate.
+    "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}",
+    // Suppress telemetry / update checks that don't make sense inside a container.
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+  },
+
+  // Forward the API, Vite dev server, and Postgres ports to the host.
+  "forwardPorts": [3000, 5173, 5432],
+  "portsAttributes": {
+    "3000": { "label": "API" },
+    "5173": { "label": "Web (Vite)" },
+    "5432": { "label": "Postgres" }
+  },
+
+  // After the container is created:
+  //   1. Install workspace npm deps
+  //   2. Install Claude Code CLI globally
+  //   3. Create a /usr/local/bin/claude-auto convenience wrapper that always
+  //      passes --dangerously-skip-permissions, so unattended / auto-approve
+  //      runs are a single command away.
+  "postCreateCommand": "npm install && npm install -g @anthropic-ai/claude-code && printf '#!/bin/sh\\nexec claude --dangerously-skip-permissions \"$@\"\\n' > /usr/local/bin/claude-auto && chmod +x /usr/local/bin/claude-auto",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  }
+}
