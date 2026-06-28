@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import { api } from '../lib/api.js'
+import AdminLayout from './AdminLayout.jsx'
 import styles from './ChoreAdmin.module.css'
 
 const RECURRENCE_TYPES = ['ad-hoc', 'completion-based']
@@ -193,11 +194,9 @@ export default function ChoreAdmin() {
   const activeKids = kids.filter((k) => k.is_active !== false)
 
   return (
-    <main className={styles.page}>
-      <h1 className={styles.pageTitle}>🐾 Chore Admin</h1>
-      <Link to="/" className={styles.backLink}>
-        ← Back to home
-      </Link>
+    <AdminLayout>
+    <div className={styles.page}>
+      <h1 className={styles.pageTitle}>Chores</h1>
 
       {status ? <p role="status" className={styles.statusMsg}>{status}</p> : null}
 
@@ -389,6 +388,7 @@ export default function ChoreAdmin() {
           ))}
         </ul>
       )}
-    </main>
+    </div>
+    </AdminLayout>
   )
 }
