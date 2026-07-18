@@ -15,7 +15,6 @@ erDiagram
     KID_PROFILES ||--o{ PAYOUTS : receives
     CHORE_DEFINITIONS ||--o{ CHORE_COMPLETIONS : logs
     CHORE_DEFINITIONS }o--o{ KID_PROFILES : "eligible via CHORE_ELIGIBLE_KIDS"
-    PAYOUTS ||--o{ CHORE_COMPLETIONS : settles
 
     HOUSEHOLDS {
         uuid id PK
@@ -69,16 +68,15 @@ erDiagram
         uuid household_id FK
         uuid chore_id FK
         uuid kid_id FK
-        uuid payout_id FK
         numeric reward_amount
         timestamptz completed_at
-        timestamptz paid_at
     }
 
     PAYOUTS {
         uuid id PK
         uuid household_id FK
         uuid kid_id FK
+        numeric amount
         text enc_notes
         timestamptz paid_at
         timestamptz created_at

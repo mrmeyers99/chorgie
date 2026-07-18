@@ -30,6 +30,7 @@ export default function AdminFamily() {
   const [avatarId, setAvatarId] = useState('corgi-1')
   const [showPayoutDialog, setShowPayoutDialog] = useState(false)
   const [payoutKidId, setPayoutKidId] = useState('')
+  const [payoutAmount, setPayoutAmount] = useState('')
   const [payoutNotes, setPayoutNotes] = useState('')
 
   useEffect(() => { void loadKids() }, [])
@@ -75,7 +76,9 @@ export default function AdminFamily() {
   }
 
   function handleOpenPayoutDialog(kidId) {
+    const kid = kids.find((k) => k.id === kidId)
     setPayoutKidId(kidId)
+    setPayoutAmount(kid ? Number(kid.balance ?? 0).toFixed(2) : '')
     setPayoutNotes('')
     setShowPayoutDialog(true)
   }
@@ -85,20 +88,28 @@ export default function AdminFamily() {
     setStatus('')
     const kid = kids.find((k) => k.id === payoutKidId)
     if (!kid) return
+    const amount = Number(payoutAmount)
+    const balance = Number(kid.balance ?? 0)
+    if (!(amount > 0) || amount > balance) {
+      setStatus('Enter an amount greater than $0 and no more than the current balance.')
+      return
+    }
     try {
-      await api.createPayout({ kid_id: payoutKidId, enc_notes: payoutNotes || undefined })
-      setStatus(`Marked ${kid.enc_display_name} as paid!`)
+      await api.createPayout({ kid_id: payoutKidId, amount, enc_notes: payoutNotes || undefined })
+      setStatus(`Recorded a $${amount.toFixed(2)} payment for ${kid.enc_display_name}!`)
       setShowPayoutDialog(false)
+      setPayoutAmount('')
       setPayoutNotes('')
       setPayoutKidId('')
       await loadKids()
     } catch (err) {
-      setStatus(err.message ?? 'Failed to mark as paid.')
+      setStatus(err.message ?? 'Failed to record payment.')
     }
   }
 
   function handleCancelPayout() {
     setShowPayoutDialog(false)
+    setPayoutAmount('')
     setPayoutNotes('')
     setPayoutKidId('')
   }
@@ -210,11 +221,24 @@ export default function AdminFamily() {
         <div className={styles.modal}>
           <div className={styles.modalContent}>
             <form onSubmit={handleMarkPaid}>
-              <h2>Mark as Paid</h2>
+              <h2>Record a Payment</h2>
               <p>
-                You are about to mark <strong>{payoutKid.enc_display_name}</strong> as paid.
-                Their balance of ${Number(payoutKid.balance ?? 0).toFixed(2)} will be reset to $0.
+                <strong>{payoutKid.enc_display_name}</strong>&apos;s current balance is $
+                {Number(payoutKid.balance ?? 0).toFixed(2)}.
               </p>
+              <div className={styles.formRow}>
+                <label htmlFor="payoutAmount">Amount</label>
+                <input
+                  id="payoutAmount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={Number(payoutKid.balance ?? 0)}
+                  value={payoutAmount}
+                  onChange={(e) => setPayoutAmount(e.target.value)}
+                  required
+                />
+              </div>
               <div className={styles.formRow}>
                 <label htmlFor="payoutNotes">Notes (optional)</label>
                 <input

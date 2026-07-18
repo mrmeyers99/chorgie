@@ -127,17 +127,17 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 
 ### 6.6 Balance Tracking
 
-- Each kid has a running **unpaid balance** = sum of reward amounts for completed-but-not-yet-paid chores.
+- Each kid has a running **balance**: a ledger value incremented by the reward amount whenever a chore is completed, and decremented by the amount of each payout made to that kid.
 - Balances are displayed on the kid dashboard and the admin overview.
 - Household admin configures the **currency symbol / code** (default: USD / $).
 
 ### 6.7 Mark Paid
 
-- Admin selects a kid and taps **"Mark Paid"** to record a payout for that kid.
-- Each payout is **per kid** — kids can be paid on completely independent schedules.
-- All completed-but-unpaid `chore_instances` for that kid are stamped with `paid_at` and linked to the new payout record. The kid's unpaid balance resets to $0.
+- Admin selects a kid and taps **"Mark Paid"** to record a payment for that kid.
+- Each payout is **per kid** — kids can be paid on completely independent schedules, and payments can be **partial**: the admin enters any amount greater than $0 and no more than the kid's current balance.
+- The entered amount is recorded as a new payout ledger entry and subtracted from the kid's balance. Payouts are not tied to any specific completed chore — completed chores remain a separate historical log, independent of what's been paid.
 - The admin can optionally add a **note** to the payout (e.g., "cash", "bank transfer", or "cash for chores + $5 bonus") before confirming.
-- Paid chore instances are hidden from the default balance view but retained for history.
+- Payment history is retained and viewable per kid, alongside their full chore-completion log.
 
 ### 6.8 Timezone & Locale
 
@@ -197,11 +197,11 @@ POST   /chores/:id/instances                         – client creates instance
 POST   /chores/:id/instances/:instanceId/complete    – mark done (kid); 409 on version mismatch
 DELETE /chores/:id/instances/:instanceId/complete    – undo completion (kid); rejected if instance is already paid (paid_at is set)
 
-GET    /kids/:id/balance       – unpaid balance for a kid
+GET    /kids/:id/balance       – current balance for a kid
 
-POST   /payouts                – mark a kid paid: stamps matching instances, creates payout record (admin)
-GET    /payouts                – list payout history, optionally filtered by ?kid_id= (admin)
-GET    /payouts/:id            – get a single payout with its chore instances (admin)
+POST   /payouts                – record a payment of a given amount (≤ current balance) for a kid; decrements balance (admin)
+GET    /payouts                – list payout history, optionally filtered by ?kid_id=
+GET    /payouts/:id            – get a single payout
 ```
 
 ---
@@ -221,7 +221,7 @@ GET    /payouts/:id            – get a single payout with its chore instances 
 ### Admin flow
 1. Admin taps "Enter Admin Mode" → enters PIN → 10-min session begins.
 2. Admin manages chores, kids, views balances.
-3. Admin taps "Mark Paid" → selects kids → confirms → balances reset.
+3. Admin taps "Mark Paid" on a kid → enters a payment amount (up to their current balance) → confirms → balance decrements by that amount.
 4. Admin taps "Exit Admin Mode" or session expires.
 
 ---

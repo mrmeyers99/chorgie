@@ -304,8 +304,6 @@ describe('GET /kids/:id/completions', () => {
           chore_name: 'enc-chore-2',
           reward_amount: '5.00',
           completed_at: '2026-05-26T00:00:00.000Z',
-          paid_at: null,
-          payout_id: null,
         },
         {
           id: 'completion-1',
@@ -313,8 +311,6 @@ describe('GET /kids/:id/completions', () => {
           chore_name: 'enc-chore-1',
           reward_amount: '2.50',
           completed_at: '2026-05-25T00:00:00.000Z',
-          paid_at: '2026-05-27T00:00:00.000Z',
-          payout_id: 'payout-1',
         },
       ],
     })
@@ -327,7 +323,6 @@ describe('GET /kids/:id/completions', () => {
     expect(res.body.completions).toHaveLength(2)
     expect(res.body.completions[0].id).toBe('completion-2')
     expect(res.body.completions[0].chore_name).toBe('enc-chore-2')
-    expect(res.body.completions[0].paid_at).toBeNull()
-    expect(res.body.completions[1].paid_at).toBe('2026-05-27T00:00:00.000Z')
+    expect(res.body.completions[1].id).toBe('completion-1')
   })
 })

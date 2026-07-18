@@ -19,6 +19,7 @@ function PaymentHistory() {
   const [status, setStatus] = useState('')
   const [loading, setLoading] = useState(true)
   const [completions, setCompletions] = useState([])
+  const [payouts, setPayouts] = useState([])
   const [kids, setKids] = useState([])
   const [selectedKid, setSelectedKid] = useState(null)
 
@@ -33,27 +34,27 @@ function PaymentHistory() {
       setStatus('')
       setSelectedKid(null)
       setCompletions([])
+      setPayouts([])
 
       try {
         const kidsData = await api.getKids()
         const activeKids = (kidsData.kids ?? []).filter((kid) => kid.is_active !== false)
         setKids(activeKids)
 
-        if (kidId) {
-          const kid = activeKids.find((k) => k.id === kidId)
-          if (kid) {
-            setSelectedKid(kid)
-            const completionsData = await api.getKidCompletions(kidId)
-            setCompletions(completionsData.completions ?? [])
-          } else {
-            setStatus('Kid not found.')
-          }
-        } else if (activeKids.length === 1) {
-          // Auto-select if only one kid
-          const kid = activeKids[0]
-          setSelectedKid(kid)
-          const completionsData = await api.getKidCompletions(kid.id)
+        const targetKid =
+          (kidId && activeKids.find((k) => k.id === kidId)) ??
+          (!kidId && activeKids.length === 1 ? activeKids[0] : null)
+
+        if (targetKid) {
+          setSelectedKid(targetKid)
+          const [completionsData, payoutsData] = await Promise.all([
+            api.getKidCompletions(targetKid.id),
+            api.getPayouts(targetKid.id),
+          ])
           setCompletions(completionsData.completions ?? [])
+          setPayouts(payoutsData.payouts ?? [])
+        } else if (kidId) {
+          setStatus('Kid not found.')
         }
       } catch (err) {
         setStatus(err.message ?? 'Failed to load data.')
@@ -80,42 +81,9 @@ function PaymentHistory() {
     })
   }
 
-  function groupCompletionsByPayout(completions) {
-    const groups = []
-    const unpaid = []
-
-    completions.forEach((completion) => {
-      if (completion.paid_at) {
-        const groupKey = completion.payout_id ?? completion.paid_at
-        const existingGroup = groups.find((g) => g.groupKey === groupKey)
-        if (existingGroup) {
-          existingGroup.completions.push(completion)
-          existingGroup.total += parseFloat(completion.reward_amount)
-        } else {
-          groups.push({
-            groupKey,
-            payout_id: completion.payout_id,
-            paid_at: completion.paid_at,
-            completions: [completion],
-            total: parseFloat(completion.reward_amount),
-          })
-        }
-      } else {
-        unpaid.push(completion)
-      }
-    })
-
-    // Sort payout groups by paid_at descending (most recent first)
-    groups.sort((a, b) => new Date(b.paid_at) - new Date(a.paid_at))
-
-    return { groups, unpaid }
-  }
-
   if (!userEmail) {
     return null
   }
-
-  const { groups: payoutGroups, unpaid: unpaidCompletions } = groupCompletionsByPayout(completions)
 
   return (
     <main className={styles.page}>
@@ -175,11 +143,11 @@ function PaymentHistory() {
             </button>
           )}
 
-          {unpaidCompletions.length > 0 && (
+          {completions.length > 0 ? (
             <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Unpaid Chores</h3>
+              <h3 className={styles.sectionTitle}>Completed Chores</h3>
               <ul className={styles.completionsList}>
-                {unpaidCompletions.map((completion) => (
+                {completions.map((completion) => (
                   <li key={completion.id} className={styles.completionItem}>
                     <div className={styles.completionInfo}>
                       <span className={styles.choreName}>{completion.chore_name}</span>
@@ -193,51 +161,31 @@ function PaymentHistory() {
                   </li>
                 ))}
               </ul>
-              <div className={styles.totalRow}>
-                <span className={styles.totalLabel}>Unpaid Total:</span>
-                <span className={styles.totalAmount}>
-                  ${unpaidCompletions
-                    .reduce((sum, c) => sum + parseFloat(c.reward_amount), 0)
-                    .toFixed(2)}
-                </span>
-              </div>
             </div>
+          ) : (
+            <p className={styles.emptyState}>No chores completed yet.</p>
           )}
 
-          {payoutGroups.length > 0 ? (
+          {payouts.length > 0 && (
             <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Payment History</h3>
-              {payoutGroups.map((group) => (
-                <div key={group.groupKey} className={styles.payoutGroup}>
-                  <div className={styles.payoutHeader}>
-                    <span className={styles.paidDate}>
-                      Paid: {formatDate(group.paid_at)}
+              <h3 className={styles.sectionTitle}>Payments Made</h3>
+              <ul className={styles.completionsList}>
+                {payouts.map((payout) => (
+                  <li key={payout.id} className={styles.completionItem}>
+                    <div className={styles.completionInfo}>
+                      <span className={styles.choreName}>{payout.enc_notes || 'Payment'}</span>
+                      <span className={styles.completionDate}>
+                        {formatDate(payout.paid_at)}
+                      </span>
+                    </div>
+                    <span className={styles.amount}>
+                      ${Number(payout.amount).toFixed(2)}
                     </span>
-                    <span className={styles.payoutTotal}>
-                      ${group.total.toFixed(2)}
-                    </span>
-                  </div>
-                  <ul className={styles.completionsList}>
-                    {group.completions.map((completion) => (
-                      <li key={completion.id} className={styles.completionItem}>
-                        <div className={styles.completionInfo}>
-                          <span className={styles.choreName}>{completion.chore_name}</span>
-                          <span className={styles.completionDate}>
-                            {formatDate(completion.completed_at)}
-                          </span>
-                        </div>
-                        <span className={styles.amount}>
-                          ${Number(completion.reward_amount).toFixed(2)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+                  </li>
+                ))}
+              </ul>
             </div>
-          ) : unpaidCompletions.length === 0 ? (
-            <p className={styles.emptyState}>No chores completed yet.</p>
-          ) : null}
+          )}
         </div>
       ) : kids.length === 0 && !loading ? (
         <p className={styles.emptyState}>No kid profiles found. Add a kid profile to get started.</p>
