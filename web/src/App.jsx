@@ -2,17 +2,16 @@ import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom'
 import Register from './pages/Register.jsx'
 import Login from './pages/Login.jsx'
+import Admin from './pages/Admin.jsx'
 import ChoreAdmin from './pages/ChoreAdmin.jsx'
 import PaymentHistory from './pages/PaymentHistory.jsx'
 import AdminFamily from './pages/AdminFamily.jsx'
 import { api } from './lib/api.js'
 import styles from './App.module.css'
 
-
 function Home() {
   const navigate = useNavigate()
   const userEmail = sessionStorage.getItem('userEmail')
-  const [pin, setPin] = useState('')
   const [status, setStatus] = useState('')
   const [kids, setKids] = useState([])
   const [loadingKids, setLoadingKids] = useState(false)
@@ -20,6 +19,9 @@ function Home() {
   const [loadingChores, setLoadingChores] = useState(false)
   const [selectedKidId, setSelectedKidId] = useState('')
   const [completingChoreId, setCompletingChoreId] = useState('')
+  const [payoutNotes, setPayoutNotes] = useState('')
+  const [showPayoutDialog, setShowPayoutDialog] = useState(false)
+  const [payoutKidId, setPayoutKidId] = useState('')
 
   useEffect(() => {
     void loadKids()
@@ -56,21 +58,14 @@ function Home() {
     }
   }
 
-  async function handleEnterAdminMode(e) {
-    e.preventDefault()
+  async function handleDeleteKid(id) {
     setStatus('')
-    const normalizedPin = pin.replace(/\D/g, '')
-    if (!/^\d{4,8}$/.test(normalizedPin)) {
-      setStatus('PIN must be 4-8 digits.')
-      return
-    }
     try {
-      const data = await api.enterAdminMode({ pin: normalizedPin })
-      sessionStorage.setItem('adminModeToken', data.adminModeToken)
-      setPin('')
-      navigate('/admin')
+      await api.deleteKid(id)
+      setStatus('Kid deactivated.')
+      await loadKids()
     } catch (err) {
-      setStatus(err.message ?? 'Unable to enter admin mode.')
+      setStatus(err.message ?? 'Failed to deactivate kid.')
     }
   }
 
@@ -98,6 +93,39 @@ function Home() {
     }
   }
 
+  function handleOpenPayoutDialog(kidId) {
+    setPayoutKidId(kidId)
+    setPayoutNotes('')
+    setShowPayoutDialog(true)
+  }
+
+  async function handleMarkPaid(e) {
+    e.preventDefault()
+    setStatus('')
+    const kid = kids.find((k) => k.id === payoutKidId)
+    if (!kid) return
+
+    try {
+      await api.createPayout({
+        kid_id: payoutKidId,
+        enc_notes: payoutNotes || undefined,
+      })
+      setStatus(`Marked ${kid.enc_display_name} as paid!`)
+      setShowPayoutDialog(false)
+      setPayoutNotes('')
+      setPayoutKidId('')
+      await loadKids()
+    } catch (err) {
+      setStatus(err.message ?? 'Failed to mark as paid.')
+    }
+  }
+
+  function handleCancelPayout() {
+    setShowPayoutDialog(false)
+    setPayoutNotes('')
+    setPayoutKidId('')
+  }
+
   async function handleLogout(e) {
     e.preventDefault()
     await api.logout().catch(() => null)
@@ -122,13 +150,13 @@ function Home() {
       })
     : []
 
-  // Upcoming chores: completion-based chores that are not yet available but will be soon
+  // Upcoming chores: recurring chores that are not yet available but will be soon
   const upcomingChores = selectedKid
     ? chores.filter((chore) => {
         if (chore.is_active === false) {
           return false
         }
-        if (chore.recurrence_type !== 'completion-based') {
+        if (chore.recurrence_type !== 'recurring') {
           return false
         }
         if (chore.is_available === true) {
@@ -151,6 +179,7 @@ function Home() {
         <h1 className={styles.appTitle}>🐾 Chorgie</h1>
         <div className={styles.topActions}>
           <span className={styles.appSubtitle}>Welcome, {userEmail}</span>
+          <Link to="/admin" className={styles.btnGhost}>Admin</Link>
           <a href="/login" onClick={handleLogout} className={styles.btnGhost}>
             Log out
           </a>
@@ -158,40 +187,6 @@ function Home() {
       </header>
 
       {status ? <p role="status" className={styles.statusMsg}>{status}</p> : null}
-
-      <div className={styles.adminCard}>
-        {!adminModeToken ? (
-          <form onSubmit={handleEnterAdminMode} noValidate>
-            <h2>Admin Mode</h2>
-            <div className={styles.formRow}>
-              <label htmlFor="pin">Enter admin PIN</label>
-              <input
-                id="pin"
-                type="password"
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                inputMode="numeric"
-                pattern="[0-9]{4,8}"
-                minLength={4}
-                maxLength={8}
-                placeholder="4–8 digit PIN"
-                required
-              />
-            </div>
-            <div className={styles.formActions}>
-              <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
-                Enter Admin Mode
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div className={styles.adminLinks}>
-            <Link to="/admin" className={`${styles.btn} ${styles.btnSecondary}`}>
-              Admin Area
-            </Link>
-          </div>
-        )}
-      </div>
 
       <div>
         <p className={styles.sectionTitle}>Your Family</p>
@@ -220,7 +215,7 @@ function Home() {
           </ul>
         ) : (
           <p className={styles.emptyState}>
-            No kid profiles yet. Enter admin mode to add one.
+            No kid profiles yet. Visit the <Link to="/admin">Admin page</Link> to add one.
           </p>
         )}
       </div>
@@ -238,27 +233,33 @@ function Home() {
           </div>
           {loadingChores ? (
             <p className={styles.emptyState}>Loading chores…</p>
-          ) : visibleChores.length ? (
+          ) : visibleChores.length === 0 && upcomingChores.length === 0 ? (
+            <p className={styles.emptyState}>No chores are available right now.</p>
+          ) : (
             <>
-              <ul className={styles.choreList}>
-                {visibleChores.map((chore) => (
-                  <li key={chore.id} className={styles.choreItem}>
-                    <span className={styles.choreName}>{chore.enc_name}</span>
-                    <span className={styles.choreMeta}>${chore.reward_amount}</span>
-                    <button
-                      type="button"
-                      onClick={() => void handleCompleteChore(chore.id)}
-                      className={`${styles.btn} ${styles.btnPrimary}`}
-                      disabled={completingChoreId === chore.id}
-                    >
-                      {completingChoreId === chore.id ? 'Completing…' : 'Complete'}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              {visibleChores.length > 0 && (
+                <ul className={styles.choreList}>
+                  {visibleChores.map((chore) => (
+                    <li key={chore.id} className={styles.choreItem}>
+                      <span className={styles.choreName}>{chore.enc_name}</span>
+                      <span className={styles.choreMeta}>${chore.reward_amount}</span>
+                      <button
+                        type="button"
+                        onClick={() => void handleCompleteChore(chore.id)}
+                        className={`${styles.btn} ${styles.btnPrimary}`}
+                        disabled={completingChoreId === chore.id}
+                      >
+                        {completingChoreId === chore.id ? 'Completing…' : 'Complete'}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
               {upcomingChores.length > 0 && (
                 <>
-                  <p className={styles.sectionTitle} style={{ marginTop: '24px' }}>Upcoming Chores</p>
+                  {visibleChores.length > 0 && (
+                    <p className={styles.sectionTitle} style={{ marginTop: '24px' }}>Upcoming Chores</p>
+                  )}
                   <ul className={styles.choreList}>
                     {upcomingChores.map((chore) => (
                       <li key={chore.id} className={`${styles.choreItem} ${styles.choreItemDisabled}`}>
@@ -267,7 +268,7 @@ function Home() {
                           ${chore.reward_amount}
                           {chore.next_available_at && (
                             <span style={{ marginLeft: '8px', fontSize: '0.85em' }}>
-                              (Available {new Date(chore.next_available_at).toLocaleDateString()})
+                              Available {new Date(chore.next_available_at).toLocaleDateString()}
                             </span>
                           )}
                         </span>
@@ -284,8 +285,6 @@ function Home() {
                 </>
               )}
             </>
-          ) : (
-            <p className={styles.emptyState}>No chores are available right now.</p>
           )}
         </div>
       ) : null}

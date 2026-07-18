@@ -302,7 +302,7 @@ describe('POST /chores/:id/complete', () => {
             id: 'chore-1',
             household_id: 'household-uuid',
             reward_amount: '2.50',
-            recurrence_type: 'completion-based',
+            recurrence_type: 'recurring',
             enc_recurrence_rule: '2',
             eligible_kids: [kidId],
             is_active: true,
@@ -312,6 +312,7 @@ describe('POST /chores/:id/complete', () => {
       }) // chore lookup
       .mockResolvedValueOnce({ rows: [{ completed_at: '2026-05-31T00:00:00.000Z' }] }) // completion insert
       .mockResolvedValueOnce({ rows: [{ balance: '5.00' }] }) // balance update
+      .mockResolvedValueOnce({ rows: [] }) // next_available_at update
       .mockResolvedValueOnce({ rows: [] }) // COMMIT
 
     const res = await request(app)
@@ -323,6 +324,8 @@ describe('POST /chores/:id/complete', () => {
     expect(res.body.reward_amount).toBe('2.50')
     expect(res.body.balance).toBe('5.00')
     expect(mockClient.query.mock.calls[2]?.[0]).toContain('FOR UPDATE OF cd')
+    expect(mockClient.query.mock.calls[5]?.[0]).toContain('SET next_available_at')
+    expect(mockClient.query.mock.calls[5]?.[1]).toContain('2026-06-02T00:00:00.000Z')
   })
 
   it('rejects completion when chore is not currently available', async () => {
@@ -337,11 +340,12 @@ describe('POST /chores/:id/complete', () => {
             id: 'chore-1',
             household_id: 'household-uuid',
             reward_amount: '2.50',
-            recurrence_type: 'completion-based',
+            recurrence_type: 'recurring',
             enc_recurrence_rule: '3',
             eligible_kids: [kidId],
             is_active: true,
             last_completed_at: new Date().toISOString(),
+            next_available_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
           },
         ],
       }) // chore lookup
@@ -417,7 +421,7 @@ describe('POST /chores/:id/override-availability', () => {
     expect(res.status).toBe(403)
   })
 
-  it('overrides availability by setting override timestamp', async () => {
+  it('overrides availability by setting next_available_at to now', async () => {
     const mockClient = await getMockClient()
 
     mockClient.query
@@ -427,14 +431,12 @@ describe('POST /chores/:id/override-availability', () => {
           {
             id: 'chore-1',
             household_id: 'household-uuid',
-            recurrence_type: 'completion-based',
-            enc_recurrence_rule: '3',
+            recurrence_type: 'recurring',
             is_active: true,
-            last_completed_at: new Date().toISOString(),
           },
         ],
       }) // chore lookup
-      .mockResolvedValueOnce({ rows: [] }) // UPDATE override
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE next_available_at
       .mockResolvedValueOnce({ rows: [] }) // COMMIT
 
     const res = await request(app)
@@ -443,10 +445,9 @@ describe('POST /chores/:id/override-availability', () => {
       .set('x-admin-mode-token', makeAdminModeToken())
 
     expect(res.status).toBe(200)
-    expect(res.body.message).toBe('Chore availability overridden.')
-    expect(res.body.override_available_until).toBeDefined()
+    expect(res.body.message).toBe('Chore is now available.')
     expect(mockClient.query.mock.calls[2]?.[0]).toContain('UPDATE chore_definitions')
-    expect(mockClient.query.mock.calls[2]?.[0]).toContain('override_available_until')
+    expect(mockClient.query.mock.calls[2]?.[0]).toContain('SET next_available_at = NOW()')
   })
 
   it('rejects override for inactive chores', async () => {
@@ -458,7 +459,7 @@ describe('POST /chores/:id/override-availability', () => {
           {
             id: 'chore-1',
             household_id: 'household-uuid',
-            recurrence_type: 'completion-based',
+            recurrence_type: 'recurring',
             enc_recurrence_rule: '3',
             is_active: false,
             last_completed_at: new Date().toISOString(),
@@ -476,7 +477,7 @@ describe('POST /chores/:id/override-availability', () => {
     expect(res.body.error).toBe('Cannot override availability for inactive chores.')
   })
 
-  it('rejects override for non-completion-based chores', async () => {
+  it('rejects override for non-recurring chores', async () => {
     const mockClient = await getMockClient()
     mockClient.query
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
@@ -500,7 +501,7 @@ describe('POST /chores/:id/override-availability', () => {
       .set('x-admin-mode-token', makeAdminModeToken())
 
     expect(res.status).toBe(400)
-    expect(res.body.error).toBe('Can only override availability for completion-based chores.')
+    expect(res.body.error).toBe('Can only override availability for recurring chores.')
   })
 
   it('requires authentication', async () => {

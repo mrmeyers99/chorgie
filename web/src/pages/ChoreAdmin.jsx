@@ -4,7 +4,7 @@ import { api } from '../lib/api.js'
 import AdminLayout from './AdminLayout.jsx'
 import styles from './ChoreAdmin.module.css'
 
-const RECURRENCE_TYPES = ['ad-hoc', 'completion-based']
+const RECURRENCE_TYPES = ['ad-hoc', 'recurring']
 
 const emptyForm = {
   enc_name: '',
@@ -257,7 +257,7 @@ export default function ChoreAdmin() {
             </select>
           </div>
 
-          {form.recurrence_type === 'completion-based' && (
+          {form.recurrence_type === 'recurring' && (
             <div className={styles.formRow}>
               <label htmlFor="enc_recurrence_rule">Repeat every (days)</label>
               <input
@@ -340,9 +340,21 @@ export default function ChoreAdmin() {
                   )}
                 </div>
                 <div className={styles.listItemMeta}>
-                  ${chore.reward_amount} · {chore.recurrence_type}
-                  {chore.last_completed_at && (
-                    <> · Last done: {new Date(chore.last_completed_at).toLocaleDateString()}</>
+                  <div>
+                    ${chore.reward_amount} · {chore.recurrence_type}
+                    {chore.recurrence_type === 'recurring' && chore.enc_recurrence_rule && (
+                      <> · every {chore.enc_recurrence_rule} {Number(chore.enc_recurrence_rule) === 1 ? 'day' : 'days'}</>
+                    )}
+                  </div>
+                  {(chore.last_completed_at || (chore.next_available_at && !chore.is_available)) && (
+                    <div>
+                      {chore.last_completed_at && (
+                        <>Last: {new Date(chore.last_completed_at).toLocaleDateString()}</>
+                      )}
+                      {chore.next_available_at && !chore.is_available && (
+                        <>{chore.last_completed_at ? ' · ' : ''}Next: {new Date(chore.next_available_at).toLocaleDateString()}</>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -363,14 +375,14 @@ export default function ChoreAdmin() {
                     >
                       Deactivate
                     </button>
-                    {chore.recurrence_type === 'completion-based' && !chore.is_available && (
+                    {chore.recurrence_type === 'recurring' && !chore.is_available && (
                       <button
                         type="button"
                         onClick={() => handleOverrideAvailability(chore.id)}
                         className={`${styles.btn} ${styles.btnSecondary}`}
                         title="Make this chore available now, even though the recurrence period hasn't elapsed"
                       >
-                        Override
+                        Make Available Early
                       </button>
                     )}
                   </>
