@@ -17,7 +17,6 @@ const emptyForm = {
 
 export default function ChoreAdmin() {
   const userEmail = sessionStorage.getItem('userEmail')
-  const adminModeToken = sessionStorage.getItem('adminModeToken')
 
   const [chores, setChores] = useState([])
   const [kids, setKids] = useState([])
@@ -28,7 +27,6 @@ export default function ChoreAdmin() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!userEmail || !adminModeToken) return
     void loadChores()
     void loadKids()
   }, [])

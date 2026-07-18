@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom'
 import Register from './pages/Register.jsx'
 import Login from './pages/Login.jsx'
-import Admin from './pages/Admin.jsx'
 import ChoreAdmin from './pages/ChoreAdmin.jsx'
 import PaymentHistory from './pages/PaymentHistory.jsx'
 import AdminFamily from './pages/AdminFamily.jsx'
@@ -19,10 +18,6 @@ function Home() {
   const [loadingChores, setLoadingChores] = useState(false)
   const [selectedKidId, setSelectedKidId] = useState('')
   const [completingChoreId, setCompletingChoreId] = useState('')
-  const [payoutNotes, setPayoutNotes] = useState('')
-  const [showPayoutDialog, setShowPayoutDialog] = useState(false)
-  const [payoutKidId, setPayoutKidId] = useState('')
-
   useEffect(() => {
     void loadKids()
     void loadChores()
@@ -31,8 +26,6 @@ function Home() {
   if (!userEmail) {
     return <Navigate to="/login" replace />
   }
-
-  const adminModeToken = sessionStorage.getItem('adminModeToken')
 
   async function loadKids() {
     setLoadingKids(true)
@@ -58,17 +51,6 @@ function Home() {
     }
   }
 
-  async function handleDeleteKid(id) {
-    setStatus('')
-    try {
-      await api.deleteKid(id)
-      setStatus('Kid deactivated.')
-      await loadKids()
-    } catch (err) {
-      setStatus(err.message ?? 'Failed to deactivate kid.')
-    }
-  }
-
   function handleKidSelect(id) {
     setSelectedKidId(id)
   }
@@ -91,39 +73,6 @@ function Home() {
     } finally {
       setCompletingChoreId('')
     }
-  }
-
-  function handleOpenPayoutDialog(kidId) {
-    setPayoutKidId(kidId)
-    setPayoutNotes('')
-    setShowPayoutDialog(true)
-  }
-
-  async function handleMarkPaid(e) {
-    e.preventDefault()
-    setStatus('')
-    const kid = kids.find((k) => k.id === payoutKidId)
-    if (!kid) return
-
-    try {
-      await api.createPayout({
-        kid_id: payoutKidId,
-        enc_notes: payoutNotes || undefined,
-      })
-      setStatus(`Marked ${kid.enc_display_name} as paid!`)
-      setShowPayoutDialog(false)
-      setPayoutNotes('')
-      setPayoutKidId('')
-      await loadKids()
-    } catch (err) {
-      setStatus(err.message ?? 'Failed to mark as paid.')
-    }
-  }
-
-  function handleCancelPayout() {
-    setShowPayoutDialog(false)
-    setPayoutNotes('')
-    setPayoutKidId('')
   }
 
   async function handleLogout(e) {

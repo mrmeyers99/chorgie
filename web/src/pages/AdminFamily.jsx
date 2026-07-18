@@ -21,7 +21,6 @@ const AVATARS = [
 
 export default function AdminFamily() {
   const userEmail = sessionStorage.getItem('userEmail')
-  const adminModeToken = sessionStorage.getItem('adminModeToken')
 
   const [kids, setKids] = useState([])
   const [loading, setLoading] = useState(false)
