@@ -106,9 +106,10 @@ Not in scope for v1 — admin password change will require re-encryption of all 
   - Name (encrypted)
   - Description (optional, encrypted)
   - Reward amount (decimal, stored in household currency)
-  - Recurrence type: **ad-hoc** or **recurring**
+  - Recurrence type: **ad-hoc**, **recurring**, or **always available**
     - **Ad-hoc:** becomes inactive after completion and remains visible in admin controls so it can be reactivated later.
     - **Recurring:** reappears after the configured repeat interval (in days).
+    - **Always available:** stays active and immediately available again after completion — no cooldown, no manual reactivation needed.
   - Assigned-to: one kid, multiple kids, or "any kid"
 - The client computes the next due date from the recurrence rule and timezone; only the computed `due_at` timestamp is stored server-side.
 
@@ -121,6 +122,7 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 - **Concurrency handling:** if another kid (or the same kid on another device) already marked the chore done, the API returns a `409 Conflict` and the client shows a friendly "Oops, someone already did this one!" message and refreshes.
 - Completed one-time chores move to a "Done today" section and no longer appear in the available list.
 - Completed ad-hoc chores move to a "Done today" section, then become inactive until an admin reactivates them.
+- Completed always-available chores remain active and available immediately — they are not deactivated and have no next-available delay.
 - A kid can **undo** a completion (tap **"Undo"** on a "Done today" chore) to un-mark it, returning it to the available list. This is intended for accidental taps; undo is blocked once the chore instance has been marked paid.
 
 ### 6.6 Balance Tracking
