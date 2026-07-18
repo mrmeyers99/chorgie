@@ -81,6 +81,7 @@ export default function AdminLayout({ children }) {
             <Link
               to="/admin"
               className={`${styles.navLink}${isFamily ? ` ${styles.navLinkActive}` : ''}`}
+              aria-current={isFamily ? 'page' : undefined}
             >
               Family
             </Link>
@@ -89,6 +90,7 @@ export default function AdminLayout({ children }) {
             <Link
               to="/chores"
               className={`${styles.navLink}${isChores ? ` ${styles.navLinkActive}` : ''}`}
+              aria-current={isChores ? 'page' : undefined}
             >
               Chores
             </Link>

@@ -193,7 +193,7 @@ export default function ChoreAdmin() {
 
   return (
     <AdminLayout>
-    <div className={styles.page}>
+      <div className={styles.page}>
       <div className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>Chores</h1>
         {!showForm && (
@@ -410,7 +410,7 @@ export default function ChoreAdmin() {
           ))}
         </ul>
       )}
-    </div>
+      </div>
     </AdminLayout>
   )
 }
