@@ -17,7 +17,7 @@ The product is intentionally simple in scope for the MVP: no push notifications,
 ### Goals
 - Give households a single, lightweight place to assign, track, and reward chores.
 - Keep personal household data private — the server stores only ciphertext; all encryption/decryption happens client-side.
-- Support chores with one-time, ad-hoc, or completion-based cadences.
+- Support chores with ad-hoc or recurring cadences.
 - Make the kid UX dead-simple (tap your avatar → see your chores → tap done).
 - Give parents a PIN-protected admin mode to manage everything without exposing admin controls to kids.
 
@@ -106,19 +106,18 @@ Not in scope for v1 — admin password change will require re-encryption of all 
   - Name (encrypted)
   - Description (optional, encrypted)
   - Reward amount (decimal, stored in household currency)
-  - Recurrence type: **one-time**, **ad-hoc**, or **completion-based**
-    - **One-time:** disappears from the available list after completion.
+  - Recurrence type: **ad-hoc** or **recurring**
     - **Ad-hoc:** becomes inactive after completion and remains visible in admin controls so it can be reactivated later.
-    - **Completion-based:** reappears after the configured repeat interval.
+    - **Recurring:** reappears after the configured repeat interval (in days).
   - Assigned-to: one kid, multiple kids, or "any kid"
 - The client computes the next due date from the recurrence rule and timezone; only the computed `due_at` timestamp is stored server-side.
 
 ### 6.5 Chore Completion
 
 - A kid sees chores assigned to them (or to "any kid") that are currently due.
-- The kid dashboard displays an **"Upcoming Chores"** section showing completion-based chores that are not yet available, sorted by when they will next become available. These chores are greyed out and not clickable.
+- The kid dashboard displays an **"Upcoming Chores"** section showing recurring chores that are not yet available, sorted by when they will next become available. These chores are greyed out and not clickable.
 - Tapping **"Done!"** triggers an optimistic update and sends a completion record to the API.
-- **For completion-based chores:** when marked complete, the server calculates and stores the `next_available_at` timestamp based on the recurrence interval.
+- **For recurring chores:** when marked complete, the server calculates and stores the `next_available_at` timestamp based on the recurrence interval.
 - **Concurrency handling:** if another kid (or the same kid on another device) already marked the chore done, the API returns a `409 Conflict` and the client shows a friendly "Oops, someone already did this one!" message and refreshes.
 - Completed one-time chores move to a "Done today" section and no longer appear in the available list.
 - Completed ad-hoc chores move to a "Done today" section, then become inactive until an admin reactivates them.
@@ -175,9 +174,8 @@ kid_profiles
 chore_definitions
   id, household_id, enc_name, enc_description, reward_amount, recurrence_type,
   enc_recurrence_rule, assigned_to (kid_id | null=any), is_active,
-  next_available_at (nullable), override_available_until (nullable), created_at
-  -- next_available_at: calculated when completion-based chore is completed;
-     stores when the chore will next be available
+  next_available_at (nullable), created_at
+  -- next_available_at: set when a recurring chore is completed; determines when it becomes available again
 
 chore_instances
   id, chore_definition_id, household_id, due_at, assigned_kid_id (nullable),

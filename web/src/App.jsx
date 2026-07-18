@@ -149,13 +149,13 @@ function Home() {
       })
     : []
 
-  // Upcoming chores: completion-based chores that are not yet available but will be soon
+  // Upcoming chores: recurring chores that are not yet available but will be soon
   const upcomingChores = selectedKid
     ? chores.filter((chore) => {
         if (chore.is_active === false) {
           return false
         }
-        if (chore.recurrence_type !== 'completion-based') {
+        if (chore.recurrence_type !== 'recurring') {
           return false
         }
         if (chore.is_available === true) {
@@ -254,27 +254,33 @@ function Home() {
           </div>
           {loadingChores ? (
             <p className={styles.emptyState}>Loading chores…</p>
-          ) : visibleChores.length ? (
+          ) : visibleChores.length === 0 && upcomingChores.length === 0 ? (
+            <p className={styles.emptyState}>No chores are available right now.</p>
+          ) : (
             <>
-              <ul className={styles.choreList}>
-                {visibleChores.map((chore) => (
-                  <li key={chore.id} className={styles.choreItem}>
-                    <span className={styles.choreName}>{chore.enc_name}</span>
-                    <span className={styles.choreMeta}>${chore.reward_amount}</span>
-                    <button
-                      type="button"
-                      onClick={() => void handleCompleteChore(chore.id)}
-                      className={`${styles.btn} ${styles.btnPrimary}`}
-                      disabled={completingChoreId === chore.id}
-                    >
-                      {completingChoreId === chore.id ? 'Completing…' : 'Complete'}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              {visibleChores.length > 0 && (
+                <ul className={styles.choreList}>
+                  {visibleChores.map((chore) => (
+                    <li key={chore.id} className={styles.choreItem}>
+                      <span className={styles.choreName}>{chore.enc_name}</span>
+                      <span className={styles.choreMeta}>${chore.reward_amount}</span>
+                      <button
+                        type="button"
+                        onClick={() => void handleCompleteChore(chore.id)}
+                        className={`${styles.btn} ${styles.btnPrimary}`}
+                        disabled={completingChoreId === chore.id}
+                      >
+                        {completingChoreId === chore.id ? 'Completing…' : 'Complete'}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
               {upcomingChores.length > 0 && (
                 <>
-                  <p className={styles.sectionTitle} style={{ marginTop: '24px' }}>Upcoming Chores</p>
+                  {visibleChores.length > 0 && (
+                    <p className={styles.sectionTitle} style={{ marginTop: '24px' }}>Upcoming Chores</p>
+                  )}
                   <ul className={styles.choreList}>
                     {upcomingChores.map((chore) => (
                       <li key={chore.id} className={`${styles.choreItem} ${styles.choreItemDisabled}`}>
@@ -283,7 +289,7 @@ function Home() {
                           ${chore.reward_amount}
                           {chore.next_available_at && (
                             <span style={{ marginLeft: '8px', fontSize: '0.85em' }}>
-                              (Available {new Date(chore.next_available_at).toLocaleDateString()})
+                              Available {new Date(chore.next_available_at).toLocaleDateString()}
                             </span>
                           )}
                         </span>
@@ -300,8 +306,6 @@ function Home() {
                 </>
               )}
             </>
-          ) : (
-            <p className={styles.emptyState}>No chores are available right now.</p>
           )}
         </div>
       ) : null}
