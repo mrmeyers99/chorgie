@@ -56,43 +56,30 @@ describe('POST /payouts', () => {
     const res = await request(app)
       .post('/payouts')
       .set('Authorization', `Bearer ${makeAccessToken()}`)
-      .send({ kid_id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' })
+      .send({ kid_id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479', amount: 5 })
 
     expect(res.status).toBe(403)
   })
 
-  it('creates a payout and resets kid balance', async () => {
+  it('creates a payout for the given amount and decrements balance', async () => {
     const mockClient = await getMockClient()
 
     mockClient.query
       .mockResolvedValueOnce({}) // BEGIN
-      .mockResolvedValueOnce({ rows: [{ id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' }] }) // kid check
-      .mockResolvedValueOnce({ // unpaid completions
-        rows: [
-          {
-            id: 'd47ac10b-58cc-4372-a567-0e02b2c3d479',
-            chore_id: 'e47ac10b-58cc-4372-a567-0e02b2c3d479',
-            kid_id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
-            reward_amount: '5.50',
-            completed_at: '2026-05-30T00:00:00.000Z',
-            paid_at: null,
-            payout_id: null,
-          },
-        ],
-      })
+      .mockResolvedValueOnce({ rows: [{ id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479', balance: '23.00' }] }) // kid check
       .mockResolvedValueOnce({ // payout insert
         rows: [
           {
             id: 'f47ac10b-58cc-4372-a567-0e02b2c3d470',
             household_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
             kid_id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
+            amount: '10.00',
             enc_notes: 'Cash payment',
             paid_at: '2026-05-31T00:00:00.000Z',
             created_at: '2026-05-31T00:00:00.000Z',
           },
         ],
       })
-      .mockResolvedValueOnce({ rows: [] }) // update chore_completions
       .mockResolvedValueOnce({ rows: [] }) // update kid balance
       .mockResolvedValueOnce({}) // COMMIT
 
@@ -102,13 +89,15 @@ describe('POST /payouts', () => {
       .set('x-admin-mode-token', makeAdminModeToken())
       .send({
         kid_id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
+        amount: 10,
         enc_notes: 'Cash payment',
       })
 
     expect(res.status).toBe(201)
     expect(res.body.kid_id).toBe('c47ac10b-58cc-4372-a567-0e02b2c3d479')
+    expect(res.body.amount).toBe('10.00')
     expect(res.body.enc_notes).toBe('Cash payment')
-    expect(res.body.completion_count).toBe(1)
+    expect(res.body.completion_count).toBeUndefined()
     expect(mockClient.query).toHaveBeenCalledWith('BEGIN')
     expect(mockClient.query).toHaveBeenCalledWith('COMMIT')
   })
@@ -123,28 +112,40 @@ describe('POST /payouts', () => {
       .post('/payouts')
       .set('Authorization', `Bearer ${makeAccessToken()}`)
       .set('x-admin-mode-token', makeAdminModeToken())
-      .send({ kid_id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' })
+      .send({ kid_id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479', amount: 5 })
 
     expect(res.status).toBe(400)
     expect(res.body.error).toBe('Kid profile not found.')
   })
 
-  it('fails when no unpaid completions', async () => {
+  it('fails when amount exceeds balance', async () => {
     const mockClient = await getMockClient()
 
     mockClient.query
       .mockResolvedValueOnce({}) // BEGIN
-      .mockResolvedValueOnce({ rows: [{ id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' }] }) // kid check
-      .mockResolvedValueOnce({ rows: [] }) // unpaid completions
+      .mockResolvedValueOnce({ rows: [{ id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479', balance: '5.00' }] }) // kid check
 
     const res = await request(app)
       .post('/payouts')
       .set('Authorization', `Bearer ${makeAccessToken()}`)
       .set('x-admin-mode-token', makeAdminModeToken())
-      .send({ kid_id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479' })
+      .send({ kid_id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479', amount: 10 })
 
     expect(res.status).toBe(400)
-    expect(res.body.error).toBe('No unpaid chore completions for this kid.')
+    expect(res.body.error).toBe("Payout amount cannot exceed the kid's current balance.")
+  })
+
+  it('rejects a non-positive amount', async () => {
+    const mockClient = await getMockClient()
+
+    const res = await request(app)
+      .post('/payouts')
+      .set('Authorization', `Bearer ${makeAccessToken()}`)
+      .set('x-admin-mode-token', makeAdminModeToken())
+      .send({ kid_id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479', amount: 0 })
+
+    expect(res.status).toBe(400)
+    expect(mockClient.query).not.toHaveBeenCalled()
   })
 })
 
@@ -155,12 +156,10 @@ describe('GET /payouts', () => {
     mockClient.release.mockReset()
   })
 
-  it('requires admin mode token', async () => {
-    const res = await request(app)
-      .get('/payouts')
-      .set('Authorization', `Bearer ${makeAccessToken()}`)
+  it('returns 401 without auth token', async () => {
+    const res = await request(app).get('/payouts')
 
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(401)
   })
 
   it('returns payouts for household', async () => {
@@ -171,6 +170,7 @@ describe('GET /payouts', () => {
           id: 'f47ac10b-58cc-4372-a567-0e02b2c3d471',
           household_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
           kid_id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
+          amount: '10.00',
           enc_notes: 'Cash',
           paid_at: '2026-05-31T00:00:00.000Z',
           created_at: '2026-05-31T00:00:00.000Z',
@@ -181,11 +181,11 @@ describe('GET /payouts', () => {
     const res = await request(app)
       .get('/payouts')
       .set('Authorization', `Bearer ${makeAccessToken()}`)
-      .set('x-admin-mode-token', makeAdminModeToken())
 
     expect(res.status).toBe(200)
     expect(res.body.payouts).toHaveLength(1)
     expect(res.body.payouts[0].id).toBe('f47ac10b-58cc-4372-a567-0e02b2c3d471')
+    expect(res.body.payouts[0].amount).toBe('10.00')
   })
 
   it('filters payouts by kid_id', async () => {
@@ -196,6 +196,7 @@ describe('GET /payouts', () => {
           id: 'f47ac10b-58cc-4372-a567-0e02b2c3d471',
           household_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
           kid_id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
+          amount: '10.00',
           enc_notes: 'Cash',
           paid_at: '2026-05-31T00:00:00.000Z',
           created_at: '2026-05-31T00:00:00.000Z',
@@ -206,7 +207,6 @@ describe('GET /payouts', () => {
     const res = await request(app)
       .get('/payouts?kid_id=c47ac10b-58cc-4372-a567-0e02b2c3d479')
       .set('Authorization', `Bearer ${makeAccessToken()}`)
-      .set('x-admin-mode-token', makeAdminModeToken())
 
     expect(res.status).toBe(200)
     expect(res.body.payouts).toHaveLength(1)
@@ -216,7 +216,6 @@ describe('GET /payouts', () => {
     const res = await request(app)
       .get('/payouts?kid_id=invalid-uuid')
       .set('Authorization', `Bearer ${makeAccessToken()}`)
-      .set('x-admin-mode-token', makeAdminModeToken())
 
     expect(res.status).toBe(400)
     expect(res.body.error).toBe('Invalid kid_id parameter')
@@ -230,52 +229,36 @@ describe('GET /payouts/:id', () => {
     mockClient.release.mockReset()
   })
 
-  it('requires admin mode token', async () => {
-    const res = await request(app)
-      .get('/payouts/f47ac10b-58cc-4372-a567-0e02b2c3d471')
-      .set('Authorization', `Bearer ${makeAccessToken()}`)
+  it('returns 401 without auth token', async () => {
+    const res = await request(app).get('/payouts/f47ac10b-58cc-4372-a567-0e02b2c3d471')
 
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(401)
   })
 
-  it('returns payout with completions', async () => {
+  it('returns the payout', async () => {
     const mockClient = await getMockClient()
-    mockClient.query
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            id: 'f47ac10b-58cc-4372-a567-0e02b2c3d471',
-            household_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-            kid_id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
-            enc_notes: 'Cash',
-            paid_at: '2026-05-31T00:00:00.000Z',
-            created_at: '2026-05-31T00:00:00.000Z',
-          },
-        ],
-      })
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            id: 'd47ac10b-58cc-4372-a567-0e02b2c3d479',
-            chore_id: 'e47ac10b-58cc-4372-a567-0e02b2c3d479',
-            kid_id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
-            reward_amount: '5.50',
-            completed_at: '2026-05-30T00:00:00.000Z',
-            paid_at: '2026-05-31T00:00:00.000Z',
-            payout_id: 'f47ac10b-58cc-4372-a567-0e02b2c3d471',
-          },
-        ],
-      })
+    mockClient.query.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 'f47ac10b-58cc-4372-a567-0e02b2c3d471',
+          household_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+          kid_id: 'c47ac10b-58cc-4372-a567-0e02b2c3d479',
+          amount: '10.00',
+          enc_notes: 'Cash',
+          paid_at: '2026-05-31T00:00:00.000Z',
+          created_at: '2026-05-31T00:00:00.000Z',
+        },
+      ],
+    })
 
     const res = await request(app)
       .get('/payouts/f47ac10b-58cc-4372-a567-0e02b2c3d471')
       .set('Authorization', `Bearer ${makeAccessToken()}`)
-      .set('x-admin-mode-token', makeAdminModeToken())
 
     expect(res.status).toBe(200)
     expect(res.body.id).toBe('f47ac10b-58cc-4372-a567-0e02b2c3d471')
-    expect(res.body.completions).toHaveLength(1)
-    expect(res.body.completions[0].payout_id).toBe('f47ac10b-58cc-4372-a567-0e02b2c3d471')
+    expect(res.body.amount).toBe('10.00')
+    expect(res.body.completions).toBeUndefined()
   })
 
   it('returns 404 for nonexistent payout', async () => {
@@ -285,7 +268,6 @@ describe('GET /payouts/:id', () => {
     const res = await request(app)
       .get('/payouts/f47ac10b-58cc-4372-a567-0e02b2c3d472')
       .set('Authorization', `Bearer ${makeAccessToken()}`)
-      .set('x-admin-mode-token', makeAdminModeToken())
 
     expect(res.status).toBe(404)
     expect(res.body.error).toBe('Payout not found.')
@@ -295,7 +277,6 @@ describe('GET /payouts/:id', () => {
     const res = await request(app)
       .get('/payouts/invalid-uuid')
       .set('Authorization', `Bearer ${makeAccessToken()}`)
-      .set('x-admin-mode-token', makeAdminModeToken())
 
     expect(res.status).toBe(404)
     expect(res.body.error).toBe('Payout not found.')

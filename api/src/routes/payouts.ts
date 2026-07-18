@@ -7,6 +7,7 @@ export const payoutsRouter = Router()
 
 const createPayoutSchema = z.object({
   kid_id: z.string().uuid(),
+  amount: z.number().positive(),
   enc_notes: z.string().optional(),
 })
 
@@ -14,19 +15,10 @@ type PayoutRow = {
   id: string
   household_id: string
   kid_id: string
+  amount: string
   enc_notes: string | null
   paid_at: string
   created_at: string
-}
-
-type CompletionRow = {
-  id: string
-  chore_id: string
-  kid_id: string
-  reward_amount: string
-  completed_at: string
-  paid_at: string | null
-  payout_id: string | null
 }
 
 payoutsRouter.post('/', requireAdminMode, async (req, res) => {
@@ -48,6 +40,7 @@ payoutsRouter.post('/', requireAdminMode, async (req, res) => {
   }
 
   const { kid_id, enc_notes } = parsed.data
+  const amount = Math.round(parsed.data.amount * 100) / 100
 
   const client = await pool.connect()
   try {
@@ -68,54 +61,32 @@ payoutsRouter.post('/', requireAdminMode, async (req, res) => {
       return
     }
 
-    const unpaidCompletions = await client.query<CompletionRow>(
-      `SELECT id, chore_id, kid_id, reward_amount, completed_at, paid_at, payout_id
-       FROM chore_completions
-       WHERE household_id = $1 AND kid_id = $2 AND paid_at IS NULL
-       ORDER BY completed_at ASC`,
-      [householdId, kid_id]
-    )
+    const balance = parseFloat(kidResult.rows[0].balance)
 
-    if (unpaidCompletions.rows.length === 0) {
+    if (amount > balance) {
       await client.query('ROLLBACK')
-      res.status(400).json({ error: 'No unpaid chore completions for this kid.' })
+      res.status(400).json({ error: "Payout amount cannot exceed the kid's current balance." })
       return
     }
 
     const payoutResult = await client.query<PayoutRow>(
-      `INSERT INTO payouts (household_id, kid_id, enc_notes)
-       VALUES ($1, $2, $3)
-       RETURNING id, household_id, kid_id, enc_notes, paid_at, created_at`,
-      [householdId, kid_id, enc_notes ?? null]
+      `INSERT INTO payouts (household_id, kid_id, amount, enc_notes)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, household_id, kid_id, amount, enc_notes, paid_at, created_at`,
+      [householdId, kid_id, amount, enc_notes ?? null]
     )
 
     const payout = payoutResult.rows[0]
 
     await client.query(
-      `UPDATE chore_completions
-       SET payout_id = $1, paid_at = $2
-       WHERE household_id = $3 AND kid_id = $4 AND paid_at IS NULL`,
-      [payout.id, payout.paid_at, householdId, kid_id]
-    )
-
-    // Compute the decrement explicitly to handle concurrent completions
-    const totalPaidAmount = unpaidCompletions.rows.reduce(
-      (sum, completion) => sum + parseFloat(completion.reward_amount),
-      0
-    )
-
-    await client.query(
       `UPDATE kid_profiles
        SET balance = balance - $1
        WHERE id = $2 AND household_id = $3`,
-      [totalPaidAmount, kid_id, householdId]
+      [amount, kid_id, householdId]
     )
 
     await client.query('COMMIT')
-    res.status(201).json({
-      ...payout,
-      completion_count: unpaidCompletions.rows.length,
-    })
+    res.status(201).json(payout)
   } catch (err) {
     await client.query('ROLLBACK')
     throw err
@@ -124,7 +95,7 @@ payoutsRouter.post('/', requireAdminMode, async (req, res) => {
   }
 })
 
-payoutsRouter.get('/', requireAdminMode, async (req, res) => {
+payoutsRouter.get('/', async (req, res) => {
   const householdId = res.locals.auth?.householdId as string | undefined
   if (!householdId) {
     res.status(401).json({ error: 'Unauthorized' })
@@ -144,7 +115,7 @@ payoutsRouter.get('/', requireAdminMode, async (req, res) => {
 
   const client = await pool.connect()
   try {
-    let query = `SELECT id, household_id, kid_id, enc_notes, paid_at, created_at
+    let query = `SELECT id, household_id, kid_id, amount, enc_notes, paid_at, created_at
                  FROM payouts
                  WHERE household_id = $1`
     const params: unknown[] = [householdId]
@@ -164,7 +135,7 @@ payoutsRouter.get('/', requireAdminMode, async (req, res) => {
   }
 })
 
-payoutsRouter.get('/:id', requireAdminMode, async (req, res) => {
+payoutsRouter.get('/:id', async (req, res) => {
   const householdId = res.locals.auth?.householdId as string | undefined
   if (!householdId) {
     res.status(401).json({ error: 'Unauthorized' })
@@ -183,7 +154,7 @@ payoutsRouter.get('/:id', requireAdminMode, async (req, res) => {
   const client = await pool.connect()
   try {
     const payoutResult = await client.query<PayoutRow>(
-      `SELECT id, household_id, kid_id, enc_notes, paid_at, created_at
+      `SELECT id, household_id, kid_id, amount, enc_notes, paid_at, created_at
        FROM payouts
        WHERE id = $1 AND household_id = $2`,
       [id, householdId]
@@ -195,18 +166,7 @@ payoutsRouter.get('/:id', requireAdminMode, async (req, res) => {
       return
     }
 
-    const completionsResult = await client.query<CompletionRow>(
-      `SELECT id, chore_id, kid_id, reward_amount, completed_at, paid_at, payout_id
-       FROM chore_completions
-       WHERE payout_id = $1
-       ORDER BY completed_at ASC`,
-      [id]
-    )
-
-    res.status(200).json({
-      ...payout,
-      completions: completionsResult.rows,
-    })
+    res.status(200).json(payout)
   } finally {
     client.release()
   }

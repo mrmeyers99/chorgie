@@ -164,17 +164,13 @@ kidsRouter.get('/:id/completions', async (req, res) => {
       chore_name: string
       reward_amount: string
       completed_at: string
-      paid_at: string | null
-      payout_id: string | null
     }>(
       `SELECT
         cc.id,
         cc.chore_id,
         cd.enc_name as chore_name,
         cc.reward_amount,
-        cc.completed_at,
-        cc.paid_at,
-        cc.payout_id
+        cc.completed_at
        FROM chore_completions cc
        JOIN chore_definitions cd ON cc.chore_id = cd.id AND cc.household_id = cd.household_id
        WHERE cc.kid_id = $1 AND cc.household_id = $2
