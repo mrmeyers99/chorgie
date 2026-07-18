@@ -25,7 +25,7 @@
     "web"
   ],
   "lint-staged": {
-    "*.ts": "prettier --write",
+    "*.{ts,jsx}": "prettier --write",
     "*.{yml,yaml}": "prettier --write"
   },
   "devDependencies": {

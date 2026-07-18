@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom'
 import Register from './pages/Register.jsx'
 import Login from './pages/Login.jsx'
-import Admin from './pages/Admin.jsx'
 import ChoreAdmin from './pages/ChoreAdmin.jsx'
 import PaymentHistory from './pages/PaymentHistory.jsx'
+import AdminFamily from './pages/AdminFamily.jsx'
 import { api } from './lib/api.js'
 import styles from './App.module.css'
 
@@ -18,10 +18,6 @@ function Home() {
   const [loadingChores, setLoadingChores] = useState(false)
   const [selectedKidId, setSelectedKidId] = useState('')
   const [completingChoreId, setCompletingChoreId] = useState('')
-  const [payoutNotes, setPayoutNotes] = useState('')
-  const [showPayoutDialog, setShowPayoutDialog] = useState(false)
-  const [payoutKidId, setPayoutKidId] = useState('')
-
   useEffect(() => {
     void loadKids()
     void loadChores()
@@ -30,8 +26,6 @@ function Home() {
   if (!userEmail) {
     return <Navigate to="/login" replace />
   }
-
-  const adminModeToken = sessionStorage.getItem('adminModeToken')
 
   async function loadKids() {
     setLoadingKids(true)
@@ -57,17 +51,6 @@ function Home() {
     }
   }
 
-  async function handleDeleteKid(id) {
-    setStatus('')
-    try {
-      await api.deleteKid(id)
-      setStatus('Kid deactivated.')
-      await loadKids()
-    } catch (err) {
-      setStatus(err.message ?? 'Failed to deactivate kid.')
-    }
-  }
-
   function handleKidSelect(id) {
     setSelectedKidId(id)
   }
@@ -90,39 +73,6 @@ function Home() {
     } finally {
       setCompletingChoreId('')
     }
-  }
-
-  function handleOpenPayoutDialog(kidId) {
-    setPayoutKidId(kidId)
-    setPayoutNotes('')
-    setShowPayoutDialog(true)
-  }
-
-  async function handleMarkPaid(e) {
-    e.preventDefault()
-    setStatus('')
-    const kid = kids.find((k) => k.id === payoutKidId)
-    if (!kid) return
-
-    try {
-      await api.createPayout({
-        kid_id: payoutKidId,
-        enc_notes: payoutNotes || undefined,
-      })
-      setStatus(`Marked ${kid.enc_display_name} as paid!`)
-      setShowPayoutDialog(false)
-      setPayoutNotes('')
-      setPayoutKidId('')
-      await loadKids()
-    } catch (err) {
-      setStatus(err.message ?? 'Failed to mark as paid.')
-    }
-  }
-
-  function handleCancelPayout() {
-    setShowPayoutDialog(false)
-    setPayoutNotes('')
-    setPayoutKidId('')
   }
 
   async function handleLogout(e) {
@@ -188,9 +138,7 @@ function Home() {
       {status ? <p role="status" className={styles.statusMsg}>{status}</p> : null}
 
       <div>
-        <p className={styles.sectionTitle}>
-          {kids.length ? 'Who are you?' : 'Kid Profiles'}
-        </p>
+        <p className={styles.sectionTitle}>Your Family</p>
         {loadingKids ? (
           <p className={styles.emptyState}>Loading…</p>
         ) : kids.length ? (
@@ -211,26 +159,6 @@ function Home() {
                   <span className={styles.kidName}>{kid.enc_display_name}</span>
                   <span className={styles.kidBalance}>${Number(kid.balance ?? 0).toFixed(2)}</span>
                 </button>
-                {adminModeToken && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteKid(kid.id)}
-                      className={`${styles.btn} ${styles.btnDanger}`}
-                    >
-                      Delete
-                    </button>
-                    {Number(kid.balance ?? 0) > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => handleOpenPayoutDialog(kid.id)}
-                        className={`${styles.btn} ${styles.btnPrimary}`}
-                      >
-                        Mark Paid
-                      </button>
-                    )}
-                  </>
-                )}
               </li>
             ))}
           </ul>
@@ -310,42 +238,6 @@ function Home() {
         </div>
       ) : null}
 
-      {showPayoutDialog && (
-        <div className={styles.modal}>
-          <div className={styles.modalContent}>
-            <form onSubmit={handleMarkPaid}>
-              <h2>Mark as Paid</h2>
-              <p>
-                You are about to mark{' '}
-                <strong>{kids.find((k) => k.id === payoutKidId)?.enc_display_name}</strong> as paid.
-                Their balance of ${Number(kids.find((k) => k.id === payoutKidId)?.balance ?? 0).toFixed(2)}{' '}
-                will be reset to $0.
-              </p>
-              <div className={styles.formRow}>
-                <label htmlFor="payoutNotes">Notes (optional)</label>
-                <input
-                  id="payoutNotes"
-                  value={payoutNotes}
-                  onChange={(e) => setPayoutNotes(e.target.value)}
-                  placeholder="e.g., cash, bank transfer, bonus"
-                />
-              </div>
-              <div className={styles.formActions}>
-                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
-                  Confirm Payment
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCancelPayout}
-                  className={`${styles.btn} ${styles.btnGhost}`}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </main>
   )
 }
@@ -356,7 +248,7 @@ function App() {
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/admin" element={<Admin />} />
+      <Route path="/admin" element={<AdminFamily />} />
       <Route path="/chores" element={<ChoreAdmin />} />
       <Route path="/history" element={<PaymentHistory />} />
       <Route path="*" element={<Navigate to="/" replace />} />
