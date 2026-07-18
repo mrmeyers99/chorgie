@@ -1,6 +1,6 @@
 # Chorgie — Product Requirements Document
 
-> **Version:** 1.0 · **Status:** Draft · **Last updated:** 2026-05-25
+> **Version:** 1.0 · **Status:** Draft · **Last updated:** 2026-07-18
 
 ---
 
@@ -156,6 +156,7 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 | Availability | Render service tier; no SLA target for MVP. |
 | Accessibility | WCAG 2.1 AA target for kid-facing screens. |
 | Browser support | Last 2 versions of Chrome, Firefox, Safari, Edge. |
+| Code formatting | Git pre-commit hook (husky + lint-staged) auto-formats staged `.ts` and `.yml`/`.yaml` files with Prettier. Requires Node 24+. |
 
 ---
 

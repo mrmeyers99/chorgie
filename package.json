@@ -5,7 +5,8 @@
   "scripts": {
     "lint": "npm run lint --workspaces",
     "build": "npm run build --workspaces",
-    "test": "npm run test --workspaces"
+    "test": "npm run test --workspaces",
+    "prepare": "husky"
   },
   "repository": {
     "type": "git",
@@ -22,5 +23,14 @@
   "workspaces": [
     "api",
     "web"
-  ]
+  ],
+  "lint-staged": {
+    "*.ts": "prettier --write",
+    "*.{yml,yaml}": "prettier --write"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.1.0",
+    "prettier": "^3.9.5"
+  }
 }
