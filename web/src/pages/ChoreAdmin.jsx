@@ -383,7 +383,7 @@ export default function ChoreAdmin() {
                         className={`${styles.btn} ${styles.btnSecondary}`}
                         title="Make this chore available now, even though the recurrence period hasn't elapsed"
                       >
-                        Activate
+                        Make Available Early
                       </button>
                     )}
                   </>

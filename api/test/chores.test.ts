@@ -312,6 +312,7 @@ describe('POST /chores/:id/complete', () => {
       }) // chore lookup
       .mockResolvedValueOnce({ rows: [{ completed_at: '2026-05-31T00:00:00.000Z' }] }) // completion insert
       .mockResolvedValueOnce({ rows: [{ balance: '5.00' }] }) // balance update
+      .mockResolvedValueOnce({ rows: [] }) // next_available_at update
       .mockResolvedValueOnce({ rows: [] }) // COMMIT
 
     const res = await request(app)
@@ -323,6 +324,8 @@ describe('POST /chores/:id/complete', () => {
     expect(res.body.reward_amount).toBe('2.50')
     expect(res.body.balance).toBe('5.00')
     expect(mockClient.query.mock.calls[2]?.[0]).toContain('FOR UPDATE OF cd')
+    expect(mockClient.query.mock.calls[5]?.[0]).toContain('SET next_available_at')
+    expect(mockClient.query.mock.calls[5]?.[1]).toContain('2026-06-02T00:00:00.000Z')
   })
 
   it('rejects completion when chore is not currently available', async () => {
@@ -342,6 +345,7 @@ describe('POST /chores/:id/complete', () => {
             eligible_kids: [kidId],
             is_active: true,
             last_completed_at: new Date().toISOString(),
+            next_available_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
           },
         ],
       }) // chore lookup
