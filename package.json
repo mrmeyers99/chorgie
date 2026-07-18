@@ -6,7 +6,7 @@
     "lint": "npm run lint --workspaces",
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "repository": {
     "type": "git",
