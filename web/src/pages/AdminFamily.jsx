@@ -36,7 +36,6 @@ export default function AdminFamily() {
   useEffect(() => { void loadKids() }, [])
 
   if (!userEmail) return <Navigate to="/login" replace />
-  if (!adminModeToken) return <Navigate to="/" replace />
 
   async function loadKids() {
     setLoading(true)
@@ -117,7 +116,7 @@ export default function AdminFamily() {
           className={`${styles.addBtn}${showCreateForm ? ` ${styles.addBtnOpen}` : ''}`}
           aria-label={showCreateForm ? 'Cancel adding kid' : 'Add new kid'}
         >
-          {showCreateForm ? '✕' : '+'}
+          {showCreateForm ? 'Cancel' : 'Add Kid'}
         </button>
       </div>
 

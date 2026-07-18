@@ -14,35 +14,31 @@
 }
 
 .addBtn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 8px;
   background: var(--accent);
   color: #fff;
   border: none;
-  font-size: 22px;
-  font-weight: 400;
-  line-height: 1;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--sans);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.15s, transform 0.15s;
+  transition: opacity 0.15s;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .addBtn:hover {
   opacity: 0.88;
 }
 
-.addBtn:active {
-  transform: scale(0.93);
-}
-
 .addBtnOpen {
   background: var(--border);
   color: var(--text-h);
-  font-size: 16px;
 }
 
 .statusMsg {

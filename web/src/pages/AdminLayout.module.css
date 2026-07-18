@@ -1,3 +1,76 @@
+.pinGate {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.pinForm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.pinTitle {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.pinRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pinRow label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted, var(--text));
+}
+
+.pinRow input {
+  padding: 9px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 15px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.pinRow input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.pinStatus {
+  margin: 0;
+  font-size: 13px;
+  color: var(--danger, #c0392b);
+}
+
+.pinSubmit {
+  padding: 10px 16px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--sans);
+}
+
+.pinSubmit:hover {
+  opacity: 0.88;
+}
+
 .layout {
   display: flex;
   min-height: 100vh;
@@ -92,21 +165,20 @@
 .exitBtn {
   width: 100%;
   padding: 9px 12px;
-  background: transparent;
-  border: 1.5px solid var(--border);
+  background: var(--accent-bg);
+  border: none;
   border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--text);
+  color: var(--accent);
   cursor: pointer;
   font-family: var(--sans);
-  transition: border-color 0.12s, color 0.12s;
-  text-align: left;
+  transition: opacity 0.12s;
+  text-align: center;
 }
 
 .exitBtn:hover {
-  border-color: var(--accent-border);
-  color: var(--accent);
+  opacity: 0.75;
 }
 
 .main {

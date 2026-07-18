@@ -3,11 +3,18 @@
   box-sizing: border-box;
 }
 
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
 .pageTitle {
   font-size: 1.75rem;
   font-weight: 800;
   color: var(--text-h);
-  margin: 0 0 24px;
+  margin: 0;
   letter-spacing: -0.3px;
 }
 
