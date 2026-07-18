@@ -161,34 +161,9 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 
 ---
 
-## 8. Data Model (logical)
+## 8. Data Model
 
-```
-households
-  id, timezone, currency_code, enc_salt, created_at
-
-users
-  id, household_id, email, password_hash, admin_pin_hash, created_at
-  -- one user (the admin) per household; kids are not users
-
-kid_profiles
-  id, household_id, enc_display_name, avatar_id, sort_order, is_active, created_at
-
-chore_definitions
-  id, household_id, enc_name, enc_description, reward_amount, recurrence_type,
-  enc_recurrence_rule, assigned_to (kid_id | null=any), is_active,
-  next_available_at (nullable), created_at
-  -- next_available_at: set when a recurring chore is completed; determines when it becomes available again
-
-chore_instances
-  id, chore_definition_id, household_id, due_at, assigned_kid_id (nullable),
-  completed_at, completed_by_kid_id, version (for optimistic lock),
-  payout_id (nullable FK → payouts), paid_at (nullable), created_at
-
-payouts
-  id, household_id, kid_id, enc_notes (nullable), paid_at, created_at
-  -- one record per kid per payment event; no concept of household-wide cycles
-```
+See the data model diagram in `README.md`, which reflects the current schema (kept up to date alongside `api/migrations/*.js`).
 
 ---
 
