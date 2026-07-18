@@ -559,8 +559,8 @@ choresRouter.post('/:id/complete', async (req, res) => {
          WHERE id = $1 AND household_id = $2`,
         [chore.id, householdId]
       )
-    } else if (chore.recurrence_type === 'completion-based') {
-      // Calculate next available time for completion-based chores
+    } else if (chore.recurrence_type === 'recurring') {
+      // Calculate next available time for recurring chores
       const recurrenceDays = getRecurrenceDays(chore.enc_recurrence_rule)
       const completedAt = new Date(completionResult.rows[0]?.completed_at)
       const nextAvailableAt = recurrenceDays
