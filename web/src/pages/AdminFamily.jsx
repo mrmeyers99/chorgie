@@ -328,7 +328,7 @@ export default function AdminFamily() {
       )}
 
       {showEditDialog && (
-        <Modal title="Edit Kid Name" onClose={handleCancelEdit}>
+        <Modal onClose={handleCancelEdit}>
           <form onSubmit={handleSaveEditName}>
             <h2>Edit Kid Name</h2>
             <div className={styles.formRow}>
@@ -364,7 +364,7 @@ export default function AdminFamily() {
       )}
 
       {showPayoutDialog && payoutKid && (
-        <Modal title="Record a Payment" onClose={handleCancelPayout}>
+        <Modal onClose={handleCancelPayout}>
           <form onSubmit={handleMarkPaid}>
             <h2>Record a Payment</h2>
             <p>

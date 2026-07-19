@@ -1,23 +1,40 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import styles from "./Modal.module.css";
 
 const FOCUSABLE_SELECTOR =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-export default function Modal({ title, onClose, children }) {
+function getFocusable(node) {
+  return Array.from(node?.querySelectorAll(FOCUSABLE_SELECTOR) ?? []).filter(
+    (el) => !el.disabled,
+  );
+}
+
+export default function Modal({ onClose, children }) {
   const contentRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  const titleId = useId();
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     const previouslyFocused = document.activeElement;
-    const focusable = contentRef.current?.querySelectorAll(FOCUSABLE_SELECTOR);
-    focusable?.[0]?.focus();
+    const node = contentRef.current;
+    const heading = node?.querySelector("h2");
+    if (heading) heading.id = titleId;
+
+    getFocusable(node)[0]?.focus();
 
     function handleKeyDown(e) {
       if (e.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
-      if (e.key !== "Tab" || !focusable?.length) return;
+      if (e.key !== "Tab") return;
+      const focusable = getFocusable(node);
+      if (!focusable.length) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
       if (e.shiftKey && document.activeElement === first) {
@@ -34,7 +51,7 @@ export default function Modal({ title, onClose, children }) {
       document.removeEventListener("keydown", handleKeyDown);
       previouslyFocused?.focus?.();
     };
-  }, [onClose]);
+  }, [titleId]);
 
   return (
     <div className={styles.modal}>
@@ -43,7 +60,7 @@ export default function Modal({ title, onClose, children }) {
         className={styles.modalContent}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-labelledby={titleId}
       >
         {children}
       </div>
