@@ -6,11 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The PRD lives at `docs/PRD.md`. Keep it current as requirements evolve: whenever a feature is added, changed, or removed, update the relevant section of the PRD to reflect the new reality before considering the task complete.
 
-The data model lives in `README.md` (a mermaid ER diagram), not in the PRD — PRD §8 just points there. **Whenever a migration is added, changed, or removed in `api/migrations/*.js`, update the ER diagram in `README.md` to match** (tables, columns, FKs, relationships) before considering the task complete. Treat it the same as the PRD: schema drift between the migrations and the diagram is a bug.
+The data model lives only in `README.md` (a mermaid ER diagram) — the PRD has no data-model section of its own. **Whenever a migration is added, changed, or removed in `api/migrations/*.js`, update the ER diagram in `README.md` to match** (tables, columns, FKs, relationships) before considering the task complete. Treat it the same as the PRD: schema drift between the migrations and the diagram is a bug.
 
 **Known PRD drift** — the implementation has diverged from the PRD in ways not yet reconciled:
-- PRD §8/§9 historically described a `chore_instances` table with client-computed due dates and per-instance optimistic locking (`version`). That was never built. Completions are tracked directly in `chore_completions`, and the API surface is `POST /chores/:id/complete` (not the PRD's `/chores/:id/instances/:instanceId/complete`). There's also no "undo completion" endpoint despite PRD §6.5 describing one.
-- `POST /chores/:id/override-availability` (admin-only, lets an admin reopen a `recurring` chore early by setting `next_available_at = NOW()`) isn't listed in the PRD §9 API surface.
+- PRD §6.5/§8 describe an "undo completion" endpoint (`DELETE /chores/:id/complete`, kid taps "Undo") that isn't implemented. Tracked in [issue #66](https://github.com/mrmeyers99/chorgie/issues/66).
 
 ## Repository structure
 

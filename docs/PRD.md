@@ -1,6 +1,6 @@
 # Chorgie — Product Requirements Document
 
-> **Version:** 1.0 · **Status:** Draft · **Last updated:** 2026-07-18
+> **Version:** 1.0 · **Status:** Draft · **Last updated:** 2026-07-19
 
 ---
 
@@ -114,7 +114,7 @@ Not in scope for v1 — admin password change will require re-encryption of all 
     - **Recurring:** reappears after the configured repeat interval (in days).
     - **Always available:** stays active and immediately available again after completion — no cooldown, no manual reactivation needed.
   - Assigned-to: one kid, multiple kids, or "any kid"
-- The client computes the next due date from the recurrence rule and timezone; only the computed `due_at` timestamp is stored server-side.
+- Recurring chores store their repeat interval as a plaintext day count (`recurrence_interval_days`) — see §6.5 for how it's used to compute availability, and §8 for the override-availability endpoint that lets an admin bypass it.
 
 ### 6.5 Chore Completion
 
@@ -126,7 +126,7 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 - Completed one-time chores move to a "Done today" section and no longer appear in the available list.
 - Completed ad-hoc chores move to a "Done today" section, then become inactive until an admin reactivates them.
 - Completed always-available chores remain active and available immediately — they are not deactivated and have no next-available delay.
-- A kid can **undo** a completion (tap **"Undo"** on a "Done today" chore) to un-mark it, returning it to the available list. This is intended for accidental taps; undo is blocked once the chore instance has been marked paid.
+- A kid can **undo** a completion (tap **"Undo"** on a "Done today" chore) to un-mark it, returning it to the available list. This is intended for accidental taps; undo is blocked once the completion has been marked paid.
 
 ### 6.6 Balance Tracking
 
@@ -164,13 +164,7 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 
 ---
 
-## 8. Data Model
-
-See the data model diagram in `README.md`, which reflects the current schema (kept up to date alongside `api/migrations/*.js`).
-
----
-
-## 9. API Surface (high-level)
+## 8. API Surface (high-level)
 
 ```
 POST   /auth/register          – create household + admin user
@@ -193,14 +187,12 @@ POST   /chores                 – create chore definition (admin)
 PATCH  /chores/:id             – update chore definition (admin)
 DELETE /chores/:id             – soft-delete (admin)
 
-GET    /chore_instances                              – list due/open chore instances for household
-GET    /chore_instances/completed                    – completed instances for balance view
-
-POST   /chores/:id/instances                         – client creates instance(s) for a chore definition's computed due dates
-POST   /chores/:id/instances/:instanceId/complete    – mark done (kid); 409 on version mismatch
-DELETE /chores/:id/instances/:instanceId/complete    – undo completion (kid); rejected if instance is already paid (paid_at is set)
+POST   /chores/:id/complete                – mark done (kid); 409 if the chore is not currently available
+POST   /chores/:id/override-availability   – reopen a recurring chore early, bypassing next_available_at (admin)
+DELETE /chores/:id/complete                – undo completion (kid); rejected once the completion has been paid
 
 GET    /kids/:id/balance       – current balance for a kid
+GET    /kids/:id/completions   – completed chores for a kid (history view)
 
 POST   /payouts                – record a payment of a given amount (≤ current balance) for a kid; decrements balance (admin)
 GET    /payouts                – list payout history, optionally filtered by ?kid_id=
@@ -209,7 +201,7 @@ GET    /payouts/:id            – get a single payout
 
 ---
 
-## 10. UX Flows (summary)
+## 9. UX Flows (summary)
 
 ### Onboarding
 1. Admin registers → household name, email, password, PIN, timezone, currency.
@@ -229,7 +221,7 @@ GET    /payouts/:id            – get a single payout
 
 ---
 
-## 11. Design System
+## 10. Design System
 
 - **Theme:** Corgi-themed — warm earth tones (tan, rust, cream, forest green accents)
 - **Typography:** Rounded, friendly sans-serif (e.g., Nunito or Poppins)
@@ -239,7 +231,7 @@ GET    /payouts/:id            – get a single payout
 
 ---
 
-## 12. Milestones
+## 11. Milestones
 
 | # | Milestone | Scope |
 |---|-----------|-------|
@@ -247,7 +239,7 @@ GET    /payouts/:id            – get a single payout
 | 2 | Auth & households | Registration, login, JWT, household settings, encryption key derivation |
 | 3 | Kids & admin mode | Kid profiles, avatar selection, admin PIN + 10-min session |
 | 4 | Chore definitions | CRUD, recurrence rules, E2E encryption of content |
-| 5 | Chore instances & completion | Client-computed due dates, mark done, concurrency (409) |
+| 5 | Chore completion | Mark done, recurrence scheduling (`next_available_at`), concurrency (409) |
 | 6 | Balances & payouts | Balance display, mark paid, archive cycle |
 | 7 | Design system | Corgi theme, component library, kid-friendly UX polish |
 | 8 | Hardening & deploy | Render deploy config, security review, accessibility pass |
