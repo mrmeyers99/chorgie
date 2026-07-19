@@ -34,6 +34,9 @@ export default function AdminFamily() {
   const [payoutKidId, setPayoutKidId] = useState("");
   const [payoutAmount, setPayoutAmount] = useState("");
   const [payoutNotes, setPayoutNotes] = useState("");
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editKidId, setEditKidId] = useState("");
+  const [editName, setEditName] = useState("");
 
   useEffect(() => {
     void loadKids();
@@ -90,6 +93,43 @@ export default function AdminFamily() {
     } catch (err) {
       setStatus(err.message ?? "Failed to deactivate kid.");
     }
+  }
+
+  function handleOpenEditDialog(kidId) {
+    const kid = kids.find((k) => k.id === kidId);
+    setEditKidId(kidId);
+    setEditName(kid?.enc_display_name ?? "");
+    setShowEditDialog(true);
+  }
+
+  async function handleSaveEditName(e) {
+    e.preventDefault();
+    setStatus("");
+    const trimmed = editName.trim();
+    if (!trimmed) {
+      setStatus("Enter a name.");
+      return;
+    }
+    try {
+      const hek = await requireHouseholdKey();
+      if (!hek) return;
+      await api.updateKid(editKidId, {
+        enc_display_name: await encryptField(hek, trimmed),
+      });
+      setStatus("Kid name updated.");
+      setShowEditDialog(false);
+      setEditKidId("");
+      setEditName("");
+      await loadKids();
+    } catch (err) {
+      setStatus(err.message ?? "Failed to update kid name.");
+    }
+  }
+
+  function handleCancelEdit() {
+    setShowEditDialog(false);
+    setEditKidId("");
+    setEditName("");
   }
 
   function handleOpenPayoutDialog(kidId) {
@@ -263,6 +303,13 @@ export default function AdminFamily() {
                 </Link>
                 <button
                   type="button"
+                  onClick={() => handleOpenEditDialog(kid.id)}
+                  className={`${styles.btn} ${styles.btnGhost}`}
+                >
+                  Edit Name
+                </button>
+                <button
+                  type="button"
                   onClick={() => void handleDeleteKid(kid.id)}
                   className={`${styles.btn} ${styles.btnDanger}`}
                 >
@@ -272,6 +319,42 @@ export default function AdminFamily() {
             </li>
           ))}
         </ul>
+      )}
+
+      {showEditDialog && (
+        <div className={styles.modal}>
+          <div className={styles.modalContent}>
+            <form onSubmit={handleSaveEditName}>
+              <h2>Edit Kid Name</h2>
+              <div className={styles.formRow}>
+                <label htmlFor="editKidName">Display name</label>
+                <input
+                  id="editKidName"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Kid's name"
+                  required
+                  autoFocus
+                />
+              </div>
+              <div className={styles.formActions}>
+                <button
+                  type="submit"
+                  className={`${styles.btn} ${styles.btnPrimary}`}
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className={`${styles.btn} ${styles.btnGhost}`}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {showPayoutDialog && payoutKid && (
