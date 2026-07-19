@@ -35,6 +35,11 @@ const historyQuerySchema = z.object({
 const kidIdUuidRegex =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Matches the exact `to_char(... , 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')` shape the
+// history query produces — validated by regex rather than Date.parse, since
+// Date only has millisecond precision and would misvalidate/mangle this
+const cursorTimestampRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;
+
 function encodeHistoryCursor(occurredAt: string, id: string): string {
   return Buffer.from(`${occurredAt}|${id}`).toString("base64url");
 }
@@ -47,7 +52,10 @@ function decodeHistoryCursor(
   if (sepIndex === -1) return null;
   const occurredAt = decoded.slice(0, sepIndex);
   const cursorId = decoded.slice(sepIndex + 1);
-  if (Number.isNaN(Date.parse(occurredAt)) || !kidIdUuidRegex.test(cursorId)) {
+  if (
+    !cursorTimestampRegex.test(occurredAt) ||
+    !kidIdUuidRegex.test(cursorId)
+  ) {
     return null;
   }
   return { occurredAt, id: cursorId };
@@ -199,10 +207,15 @@ kidsRouter.get("/:id/history", async (req, res) => {
 
     // payouts aren't tied to specific completions (PRD §6.7), so this has to be a
     // UNION ALL of two independent logs, not a join
+    //
+    // occurred_at_raw carries full microsecond precision as text so the cursor never
+    // round-trips through a JS Date (millisecond precision), which would let two rows
+    // landing in the same millisecond permanently vanish from the ledger
     const result = await client.query<{
       id: string;
       type: "completion" | "payout";
       occurred_at: string;
+      occurred_at_raw: string;
       amount: string;
       chore_id: string | null;
       chore_name: string | null;
@@ -210,6 +223,7 @@ kidsRouter.get("/:id/history", async (req, res) => {
     }>(
       `SELECT * FROM (
          SELECT cc.id, 'completion' AS type, cc.completed_at AS occurred_at,
+                to_char(cc.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS occurred_at_raw,
                 cc.reward_amount AS amount, cc.chore_id,
                 cd.enc_name AS chore_name, NULL AS enc_notes
          FROM chore_completions cc
@@ -218,6 +232,7 @@ kidsRouter.get("/:id/history", async (req, res) => {
            AND ($3::timestamptz IS NULL OR (cc.completed_at, cc.id) < ($3::timestamptz, $4::uuid))
          UNION ALL
          SELECT p.id, 'payout' AS type, p.paid_at AS occurred_at,
+                to_char(p.paid_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS occurred_at_raw,
                 p.amount, NULL AS chore_id,
                 NULL AS chore_name, p.enc_notes
          FROM payouts p
@@ -236,14 +251,23 @@ kidsRouter.get("/:id/history", async (req, res) => {
     );
 
     const hasMore = result.rows.length > limit;
-    const entries = hasMore ? result.rows.slice(0, limit) : result.rows;
+    const pageRows = hasMore ? result.rows.slice(0, limit) : result.rows;
     const nextCursor =
-      hasMore && entries.length > 0
+      hasMore && pageRows.length > 0
         ? encodeHistoryCursor(
-            new Date(entries[entries.length - 1].occurred_at).toISOString(),
-            entries[entries.length - 1].id,
+            pageRows[pageRows.length - 1].occurred_at_raw,
+            pageRows[pageRows.length - 1].id,
           )
         : null;
+    const entries = pageRows.map((row) => ({
+      id: row.id,
+      type: row.type,
+      occurred_at: row.occurred_at,
+      amount: row.amount,
+      chore_id: row.chore_id,
+      chore_name: row.chore_name,
+      enc_notes: row.enc_notes,
+    }));
 
     res.status(200).json({ entries, next_cursor: nextCursor });
   } finally {

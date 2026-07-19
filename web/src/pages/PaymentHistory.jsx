@@ -38,6 +38,7 @@ function PaymentHistory() {
   const userEmail = sessionStorage.getItem("userEmail");
   const backTo = location.state?.from;
   const hekRef = useRef(null);
+  const requestIdRef = useRef(0);
 
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
@@ -53,25 +54,34 @@ function PaymentHistory() {
       return;
     }
 
+    // The route doesn't remount on a kid switch (same component, only the
+    // ?kid= search param changes), so a still-in-flight request from the
+    // previous kid must not be allowed to land on this kid's state
+    const requestId = ++requestIdRef.current;
+    const isStale = () => requestIdRef.current !== requestId;
+
     async function loadData() {
       setLoading(true);
       setStatus("");
       setSelectedKid(null);
       setEntries([]);
       setNextCursor(null);
+      setLoadingMore(false);
 
       try {
         const hek = await requireHouseholdKey();
-        if (!hek) return;
+        if (!hek || isStale()) return;
         hekRef.current = hek;
 
         const kidsData = await api.getKids();
+        if (isStale()) return;
         const decryptedKids = await Promise.all(
           (kidsData.kids ?? []).map(async (kid) => ({
             ...kid,
             enc_display_name: await safeDecryptField(hek, kid.enc_display_name),
           })),
         );
+        if (isStale()) return;
         const activeKids = decryptedKids.filter(
           (kid) => kid.is_active !== false,
         );
@@ -86,19 +96,21 @@ function PaymentHistory() {
           const historyData = await api.getKidHistory(targetKid.id, {
             limit: HISTORY_PAGE_SIZE,
           });
+          if (isStale()) return;
           const decrypted = await decryptHistoryEntries(
             hek,
             historyData.entries ?? [],
           );
+          if (isStale()) return;
           setEntries(decrypted);
           setNextCursor(historyData.next_cursor ?? null);
         } else if (kidId) {
           setStatus("Kid not found.");
         }
       } catch (err) {
-        setStatus(err.message ?? "Failed to load data.");
+        if (!isStale()) setStatus(err.message ?? "Failed to load data.");
       } finally {
-        setLoading(false);
+        if (!isStale()) setLoading(false);
       }
     }
 
@@ -107,22 +119,27 @@ function PaymentHistory() {
 
   async function handleLoadMore() {
     if (!selectedKid || loadingMore) return;
+    const requestId = requestIdRef.current;
+    const isStale = () => requestIdRef.current !== requestId;
+
     setLoadingMore(true);
     try {
       const historyData = await api.getKidHistory(selectedKid.id, {
         limit: HISTORY_PAGE_SIZE,
         cursor: nextCursor,
       });
+      if (isStale()) return;
       const decrypted = await decryptHistoryEntries(
         hekRef.current,
         historyData.entries ?? [],
       );
+      if (isStale()) return;
       setEntries((prev) => [...prev, ...decrypted]);
       setNextCursor(historyData.next_cursor ?? null);
     } catch (err) {
-      setStatus(err.message ?? "Failed to load more history.");
+      if (!isStale()) setStatus(err.message ?? "Failed to load more history.");
     } finally {
-      setLoadingMore(false);
+      if (!isStale()) setLoadingMore(false);
     }
   }
 

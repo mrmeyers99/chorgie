@@ -395,9 +395,9 @@ describe("GET /kids/:id/history", () => {
   it("passes decoded cursor values through to the query for a subsequent page", async () => {
     const mockClient = await getMockClient();
     const cursorId = "99999999-9999-9999-9999-999999999999";
-    const cursor = Buffer.from(`2026-05-20T00:00:00.000Z|${cursorId}`).toString(
-      "base64url",
-    );
+    const cursor = Buffer.from(
+      `2026-05-20T00:00:00.000000Z|${cursorId}`,
+    ).toString("base64url");
     mockClient.query.mockResolvedValueOnce({ rows: [{ id: kidId }] });
     mockClient.query.mockResolvedValueOnce({ rows: [] });
 
@@ -409,13 +409,27 @@ describe("GET /kids/:id/history", () => {
     expect(mockClient.query).toHaveBeenNthCalledWith(2, expect.any(String), [
       kidId,
       "household-uuid",
-      "2026-05-20T00:00:00.000Z",
+      "2026-05-20T00:00:00.000000Z",
       cursorId,
       21,
     ]);
   });
 
-  it("sets next_cursor and trims the extra row when more results exist", async () => {
+  it("returns 400 for a cursor timestamp with millisecond (not microsecond) precision", async () => {
+    const cursorId = "99999999-9999-9999-9999-999999999999";
+    const cursor = Buffer.from(`2026-05-20T00:00:00.000Z|${cursorId}`).toString(
+      "base64url",
+    );
+
+    const res = await request(app)
+      .get(`/kids/${kidId}/history?cursor=${cursor}`)
+      .set("Authorization", `Bearer ${makeAccessToken()}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Invalid cursor.");
+  });
+
+  it("sets next_cursor from the full-precision timestamp and trims the extra row when more results exist", async () => {
     const mockClient = await getMockClient();
     mockClient.query.mockResolvedValueOnce({ rows: [{ id: kidId }] });
     mockClient.query.mockResolvedValueOnce({
@@ -424,6 +438,7 @@ describe("GET /kids/:id/history", () => {
           id: "completion-3",
           type: "completion",
           occurred_at: "2026-05-27T00:00:00.000Z",
+          occurred_at_raw: "2026-05-27T00:00:00.123999Z",
           amount: "1.00",
           chore_id: "chore-1",
           chore_name: "enc-chore-3",
@@ -433,6 +448,7 @@ describe("GET /kids/:id/history", () => {
           id: "completion-2",
           type: "completion",
           occurred_at: "2026-05-26T00:00:00.000Z",
+          occurred_at_raw: "2026-05-26T00:00:00.000000Z",
           amount: "5.00",
           chore_id: "chore-1",
           chore_name: "enc-chore-2",
@@ -448,9 +464,10 @@ describe("GET /kids/:id/history", () => {
     expect(res.status).toBe(200);
     expect(res.body.entries).toHaveLength(1);
     expect(res.body.entries[0].id).toBe("completion-3");
+    expect(res.body.entries[0].occurred_at_raw).toBeUndefined();
     expect(res.body.next_cursor).not.toBeNull();
     expect(decodeCursor(res.body.next_cursor)).toEqual({
-      occurredAt: "2026-05-27T00:00:00.000Z",
+      occurredAt: "2026-05-27T00:00:00.123999Z",
       id: "completion-3",
     });
   });
