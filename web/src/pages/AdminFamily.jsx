@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Navigate, Link } from "react-router-dom";
 import { api } from "../lib/api.js";
+import { encryptField, safeDecryptField } from "../lib/crypto.js";
+import { requireHouseholdKey } from "../lib/keyStore.js";
 import AdminLayout from "./AdminLayout.jsx";
 import styles from "./AdminFamily.module.css";
 
@@ -42,8 +44,16 @@ export default function AdminFamily() {
   async function loadKids() {
     setLoading(true);
     try {
+      const hek = await requireHouseholdKey();
+      if (!hek) return;
       const data = await api.getKids();
-      setKids((data.kids ?? []).filter((kid) => kid.is_active !== false));
+      const decrypted = await Promise.all(
+        (data.kids ?? []).map(async (kid) => ({
+          ...kid,
+          enc_display_name: await safeDecryptField(hek, kid.enc_display_name),
+        })),
+      );
+      setKids(decrypted.filter((kid) => kid.is_active !== false));
     } catch (err) {
       setStatus(err.message ?? "Failed to load kid profiles.");
     } finally {
@@ -55,7 +65,12 @@ export default function AdminFamily() {
     e.preventDefault();
     setStatus("");
     try {
-      await api.createKid({ enc_display_name: kidName, avatar_id: avatarId });
+      const hek = await requireHouseholdKey();
+      if (!hek) return;
+      await api.createKid({
+        enc_display_name: await encryptField(hek, kidName),
+        avatar_id: avatarId,
+      });
       setKidName("");
       setAvatarId("corgi-1");
       setShowCreateForm(false);
@@ -99,10 +114,15 @@ export default function AdminFamily() {
       return;
     }
     try {
+      const hek = await requireHouseholdKey();
+      if (!hek) return;
+      const encNotes = payoutNotes
+        ? await encryptField(hek, payoutNotes)
+        : undefined;
       await api.createPayout({
         kid_id: payoutKidId,
         amount,
-        enc_notes: payoutNotes || undefined,
+        enc_notes: encNotes,
       });
       setStatus(
         `Recorded a $${amount.toFixed(2)} payment for ${kid.enc_display_name}!`,

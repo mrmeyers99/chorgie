@@ -59,19 +59,22 @@ All **household-specific user-generated content** (chore names, descriptions, ki
 
 ### Key derivation
 1. On household registration the client derives a symmetric **household encryption key (HEK)** from the admin's password using **PBKDF2** (or Argon2id) + a random salt stored server-side.
-2. The HEK is held only in memory (never persisted in `localStorage` without user consent).
-3. Each encrypted field uses **AES-256-GCM** with a random per-field IV stored alongside the ciphertext.
+2. On login, the client re-derives the same HEK from the entered password plus the salt fetched from `GET /household`, since kids share the admin's already-logged-in browser tab with no login of their own.
+3. The HEK (a non-extractable key) is persisted in IndexedDB on the client so it survives a page reload, rather than a plain in-memory variable that would be wiped and strand a valid session with undecryptable content; raw key material never leaves the browser's crypto boundary and is never written to `localStorage`.
+4. Each encrypted field uses **AES-256-GCM** with a random per-field IV stored alongside the ciphertext.
 
 ### What is stored in plaintext on the server
 - Household ID, timezone, currency code
 - Admin user ID, email address (for auth), password hash
-- Chore IDs, due-date timestamps (derived by the client), completion timestamps
+- Chore IDs, reward amounts, recurrence type, recurrence interval (day count), due-date timestamps (derived by the client), completion timestamps
 - Archived payout IDs and timestamps
 
 ### What is stored encrypted
-- Chore name, description, recurrence rule
+- Chore name, description
 - Kid display name (the label shown on their avatar)
 - Any free-text notes on a payout cycle
+
+> **Note:** the recurrence *rule* is not encrypted — for this app it's just a day-count integer (`recurrence_interval_days`), and the server needs to read it in plaintext to compute `next_available_at` during chore completion (a kid-triggered, concurrency-sensitive operation that must stay server-trusted). There's no textual content in it worth protecting.
 
 ### Key rotation (post-MVP)
 Not in scope for v1 — admin password change will require re-encryption of all household data in a future version.

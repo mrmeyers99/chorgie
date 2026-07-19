@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { api } from "../lib/api.js";
+import { encryptField, safeDecryptField } from "../lib/crypto.js";
+import { requireHouseholdKey } from "../lib/keyStore.js";
 import AdminLayout from "./AdminLayout.jsx";
 import styles from "./ChoreAdmin.module.css";
 
@@ -11,7 +13,7 @@ const emptyForm = {
   enc_description: "",
   reward_amount: "",
   recurrence_type: "ad-hoc",
-  enc_recurrence_rule: "",
+  recurrence_interval_days: "",
   eligible_kids: [],
 };
 
@@ -38,8 +40,17 @@ export default function ChoreAdmin() {
   async function loadChores() {
     setLoading(true);
     try {
+      const hek = await requireHouseholdKey();
+      if (!hek) return;
       const data = await api.getChores();
-      setChores(data.chores ?? []);
+      const decrypted = await Promise.all(
+        (data.chores ?? []).map(async (chore) => ({
+          ...chore,
+          enc_name: await safeDecryptField(hek, chore.enc_name),
+          enc_description: await safeDecryptField(hek, chore.enc_description),
+        })),
+      );
+      setChores(decrypted);
     } catch (err) {
       setStatus(err.message ?? "Failed to load chores.");
     } finally {
@@ -49,8 +60,16 @@ export default function ChoreAdmin() {
 
   async function loadKids() {
     try {
+      const hek = await requireHouseholdKey();
+      if (!hek) return;
       const data = await api.getKids();
-      setKids(data.kids ?? []);
+      const decrypted = await Promise.all(
+        (data.kids ?? []).map(async (kid) => ({
+          ...kid,
+          enc_display_name: await safeDecryptField(hek, kid.enc_display_name),
+        })),
+      );
+      setKids(decrypted);
     } catch {
       // non-critical
     }
@@ -61,10 +80,10 @@ export default function ChoreAdmin() {
     setForm((prev) => ({
       ...prev,
       [name]: value,
-      // Clear the recurrence rule when switching to recurrence types that do not use it
+      // Clear the recurrence interval when switching to recurrence types that do not use it
       ...(name === "recurrence_type" &&
       (value === "ad-hoc" || value === "always-available")
-        ? { enc_recurrence_rule: "" }
+        ? { recurrence_interval_days: "" }
         : {}),
     }));
   }
@@ -99,7 +118,7 @@ export default function ChoreAdmin() {
         chore.recurrence_type === "one-time"
           ? "ad-hoc"
           : (chore.recurrence_type ?? "ad-hoc"),
-      enc_recurrence_rule: chore.enc_recurrence_rule ?? "",
+      recurrence_interval_days: chore.recurrence_interval_days ?? "",
       eligible_kids: chore.eligible_kids ?? [],
     });
     setStatus("");
@@ -115,15 +134,18 @@ export default function ChoreAdmin() {
   async function handleSubmit(e) {
     e.preventDefault();
     setStatus("");
+    const hek = await requireHouseholdKey();
+    if (!hek) return;
     const payload = {
-      enc_name: form.enc_name,
+      enc_name: await encryptField(hek, form.enc_name),
       reward_amount: Number(form.reward_amount),
       recurrence_type: form.recurrence_type,
       eligible_kids: form.eligible_kids,
     };
-    if (form.enc_description) payload.enc_description = form.enc_description;
-    if (form.enc_recurrence_rule)
-      payload.enc_recurrence_rule = form.enc_recurrence_rule;
+    if (form.enc_description)
+      payload.enc_description = await encryptField(hek, form.enc_description);
+    if (form.recurrence_interval_days)
+      payload.recurrence_interval_days = Number(form.recurrence_interval_days);
 
     try {
       if (editingId) {
@@ -280,16 +302,16 @@ export default function ChoreAdmin() {
 
               {form.recurrence_type === "recurring" && (
                 <div className={styles.formRow}>
-                  <label htmlFor="enc_recurrence_rule">
+                  <label htmlFor="recurrence_interval_days">
                     Repeat every (days)
                   </label>
                   <input
-                    id="enc_recurrence_rule"
-                    name="enc_recurrence_rule"
+                    id="recurrence_interval_days"
+                    name="recurrence_interval_days"
                     type="number"
                     min="1"
                     step="1"
-                    value={form.enc_recurrence_rule}
+                    value={form.recurrence_interval_days}
                     onChange={handleChange}
                     required
                   />
@@ -371,11 +393,11 @@ export default function ChoreAdmin() {
                     <div>
                       ${chore.reward_amount} · {chore.recurrence_type}
                       {chore.recurrence_type === "recurring" &&
-                        chore.enc_recurrence_rule && (
+                        chore.recurrence_interval_days && (
                           <>
                             {" "}
-                            · every {chore.enc_recurrence_rule}{" "}
-                            {Number(chore.enc_recurrence_rule) === 1
+                            · every {chore.recurrence_interval_days}{" "}
+                            {Number(chore.recurrence_interval_days) === 1
                               ? "day"
                               : "days"}
                           </>

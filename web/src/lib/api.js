@@ -1,3 +1,5 @@
+import { clearHouseholdKey } from './keyStore.js'
+
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
 function handleExpiredSession() {
@@ -5,6 +7,7 @@ function handleExpiredSession() {
   sessionStorage.removeItem('csrfToken')
   sessionStorage.removeItem('adminModeToken')
   sessionStorage.removeItem('userEmail')
+  clearHouseholdKey()
   window.location.replace('/login')
 }
 

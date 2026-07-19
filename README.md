@@ -51,7 +51,7 @@ erDiagram
         text enc_description
         numeric reward_amount
         text recurrence_type "ad-hoc | recurring | always-available"
-        text enc_recurrence_rule
+        integer recurrence_interval_days
         boolean is_active
         timestamptz last_completed_at
         timestamptz next_available_at

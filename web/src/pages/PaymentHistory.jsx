@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { api } from "../lib/api.js";
+import { safeDecryptField } from "../lib/crypto.js";
+import { requireHouseholdKey } from "../lib/keyStore.js";
 import styles from "./PaymentHistory.module.css";
 
 const AVATAR_EMOJI = {
@@ -39,8 +41,17 @@ function PaymentHistory() {
       setPayouts([]);
 
       try {
+        const hek = await requireHouseholdKey();
+        if (!hek) return;
+
         const kidsData = await api.getKids();
-        const activeKids = (kidsData.kids ?? []).filter(
+        const decryptedKids = await Promise.all(
+          (kidsData.kids ?? []).map(async (kid) => ({
+            ...kid,
+            enc_display_name: await safeDecryptField(hek, kid.enc_display_name),
+          })),
+        );
+        const activeKids = decryptedKids.filter(
           (kid) => kid.is_active !== false,
         );
         setKids(activeKids);
@@ -55,8 +66,20 @@ function PaymentHistory() {
             api.getKidCompletions(targetKid.id),
             api.getPayouts(targetKid.id),
           ]);
-          setCompletions(completionsData.completions ?? []);
-          setPayouts(payoutsData.payouts ?? []);
+          const decryptedCompletions = await Promise.all(
+            (completionsData.completions ?? []).map(async (completion) => ({
+              ...completion,
+              chore_name: await safeDecryptField(hek, completion.chore_name),
+            })),
+          );
+          const decryptedPayouts = await Promise.all(
+            (payoutsData.payouts ?? []).map(async (payout) => ({
+              ...payout,
+              enc_notes: await safeDecryptField(hek, payout.enc_notes),
+            })),
+          );
+          setCompletions(decryptedCompletions);
+          setPayouts(decryptedPayouts);
         } else if (kidId) {
           setStatus("Kid not found.");
         }

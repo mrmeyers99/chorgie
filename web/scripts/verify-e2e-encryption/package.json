@@ -1,0 +1,13 @@
+{
+  "name": "verify-e2e-encryption",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Ad-hoc Playwright smoke test for client-side E2E encryption (issue #53). Not part of the web workspace or CI.",
+  "type": "module",
+  "scripts": {
+    "verify": "node verify.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.61.1"
+  }
+}

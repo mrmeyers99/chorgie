@@ -1,77 +1,79 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { deriveHouseholdKey } from '../lib/crypto.js'
-import { api } from '../lib/api.js'
-import styles from './Register.module.css'
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { deriveHouseholdKey } from "../lib/crypto.js";
+import { setHouseholdKey } from "../lib/keyStore.js";
+import { api } from "../lib/api.js";
+import styles from "./Register.module.css";
 
 const TIMEZONES =
-  typeof Intl.supportedValuesOf === 'function'
-    ? Intl.supportedValuesOf('timeZone')
+  typeof Intl.supportedValuesOf === "function"
+    ? Intl.supportedValuesOf("timeZone")
     : [
-        'America/New_York',
-        'America/Chicago',
-        'America/Denver',
-        'America/Los_Angeles',
-        'America/Anchorage',
-        'Pacific/Honolulu',
-        'Europe/London',
-        'Europe/Berlin',
-        'Europe/Paris',
-        'Asia/Tokyo',
-        'Asia/Shanghai',
-        'Asia/Kolkata',
-        'Australia/Sydney',
-        'Pacific/Auckland',
-      ]
+        "America/New_York",
+        "America/Chicago",
+        "America/Denver",
+        "America/Los_Angeles",
+        "America/Anchorage",
+        "Pacific/Honolulu",
+        "Europe/London",
+        "Europe/Berlin",
+        "Europe/Paris",
+        "Asia/Tokyo",
+        "Asia/Shanghai",
+        "Asia/Kolkata",
+        "Australia/Sydney",
+        "Pacific/Auckland",
+      ];
 const CURRENCIES = [
-  { code: 'USD', label: 'USD — US Dollar ($)' },
-  { code: 'EUR', label: 'EUR — Euro (€)' },
-  { code: 'GBP', label: 'GBP — British Pound (£)' },
-  { code: 'CAD', label: 'CAD — Canadian Dollar (CA$)' },
-  { code: 'AUD', label: 'AUD — Australian Dollar (A$)' },
-]
+  { code: "USD", label: "USD — US Dollar ($)" },
+  { code: "EUR", label: "EUR — Euro (€)" },
+  { code: "GBP", label: "GBP — British Pound (£)" },
+  { code: "CAD", label: "CAD — Canadian Dollar (CA$)" },
+  { code: "AUD", label: "AUD — Australian Dollar (A$)" },
+];
 
 const DEFAULT_TZ =
-  Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'America/New_York'
+  Intl.DateTimeFormat().resolvedOptions().timeZone ?? "America/New_York";
 
 export default function Register() {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   const [form, setForm] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    admin_pin: '',
-    confirmAdminPin: '',
+    email: "",
+    password: "",
+    confirmPassword: "",
+    admin_pin: "",
+    confirmAdminPin: "",
     timezone: DEFAULT_TZ,
-    currency_code: 'USD',
-  })
-  const [error, setError] = useState(null)
-  const [loading, setLoading] = useState(false)
+    currency_code: "USD",
+  });
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   function handleChange(e) {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
 
   async function handleSubmit(e) {
-    e.preventDefault()
-    setError(null)
+    e.preventDefault();
+    setError(null);
 
     if (form.password !== form.confirmPassword) {
-      setError('Passwords do not match.')
-      return
+      setError("Passwords do not match.");
+      return;
     }
     if (!/^\d{4,8}$/.test(form.admin_pin)) {
-      setError('Admin PIN must be 4 to 8 digits.')
-      return
+      setError("Admin PIN must be 4 to 8 digits.");
+      return;
     }
     if (form.admin_pin !== form.confirmAdminPin) {
-      setError('Admin PINs do not match.')
-      return
+      setError("Admin PINs do not match.");
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
     try {
-      const { encSalt } = await deriveHouseholdKey(form.password)
+      const { encSalt, hek } = await deriveHouseholdKey(form.password);
+      await setHouseholdKey(hek);
 
       const data = await api.register({
         email: form.email,
@@ -80,20 +82,20 @@ export default function Register() {
         timezone: form.timezone,
         currency_code: form.currency_code,
         enc_salt: encSalt,
-      })
+      });
 
       // Store access token in memory via sessionStorage for now
-      sessionStorage.setItem('accessToken', data.accessToken)
+      sessionStorage.setItem("accessToken", data.accessToken);
       if (data.csrfToken) {
-        sessionStorage.setItem('csrfToken', data.csrfToken)
+        sessionStorage.setItem("csrfToken", data.csrfToken);
       }
-      sessionStorage.setItem('userEmail', data.user.email)
+      sessionStorage.setItem("userEmail", data.user.email);
 
-      navigate('/')
+      navigate("/");
     } catch (err) {
-      setError(err.message ?? 'Registration failed. Please try again.')
+      setError(err.message ?? "Registration failed. Please try again.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -221,10 +223,10 @@ export default function Register() {
           </div>
 
           <button type="submit" disabled={loading} className={styles.submit}>
-            {loading ? 'Creating household…' : 'Create household'}
+            {loading ? "Creating household…" : "Create household"}
           </button>
         </form>
       </div>
     </main>
-  )
+  );
 }

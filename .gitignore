@@ -147,3 +147,6 @@ vite.config.ts.timestamp-*
 
 # verify-history-link script output
 web/scripts/verify-history-link/screenshots/
+
+# verify-e2e-encryption script output
+web/scripts/verify-e2e-encryption/screenshots/
