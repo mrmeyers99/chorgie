@@ -144,3 +144,6 @@ vite.config.ts.timestamp-*
 
 # JetBrains IDEs
 .idea/
+
+# verify-history-link script output
+web/scripts/verify-history-link/screenshots/
