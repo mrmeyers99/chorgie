@@ -60,6 +60,19 @@ Requires a root `.env` with `POSTGRES_USER`, `POSTGRES_PASSWORD`, `JWT_SECRET` (
 
 CI (`.github/workflows/ci.yml`) runs lint → build → test separately for `api` and `web` on every push/PR to `main`, with no services — API tests don't need a live Postgres because the DB layer is mocked (see below).
 
+### Manual UI verification (Playwright)
+
+`web/scripts/verify-history-link/` is a standalone Playwright smoke test that drives a real browser through: register a household → enter Admin Mode → click "History" on a kid tile → confirm the back button returns to `/admin`. It's a one-off tool for visually verifying admin-navigation changes, not a CI test — it has its own `package.json`/lockfile (with `playwright` as a dependency) deliberately kept out of the `web` workspace, so `npm ci` in CI never triggers Playwright's browser download.
+
+```bash
+cd web/scripts/verify-history-link
+npm install
+npx playwright install chromium   # one-time browser download
+WEB_URL=http://localhost:5173 node verify.mjs
+```
+
+Requires the API + web dev server already running (e.g. `docker compose up`) and the web server's origin to match the API's `CORS_ORIGIN` (default `http://localhost:5173`) — if you're testing a worktree/branch other than what's mounted in the `web` container, `docker compose stop web` first and run `npm run dev --workspace web -- --port 5173 --strictPort` in its place. Screenshots land in `web/scripts/verify-history-link/screenshots/` (gitignored). The script registers a throw-away test household and does not clean it up — delete it manually afterward (or run against a disposable DB) if you're pointed at shared data.
+
 ## API architecture (`api/src`)
 
 - `app.ts` — builds the Express app: CORS (credentialed, origin from `CORS_ORIGIN`), cookie parsing, three separate rate limiters (general/auth/admin), then mounts routers. `requireAuth` is applied per-router at mount time in `app.ts`, not inside each router file.
