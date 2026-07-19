@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Routes, Route, Navigate, Link, useNavigate } from "react-router-dom";
+import Landing from "./pages/Landing.jsx";
 import Register from "./pages/Register.jsx";
 import Login from "./pages/Login.jsx";
 import ChoreAdmin from "./pages/ChoreAdmin.jsx";
@@ -21,12 +22,13 @@ function Home() {
   const [selectedKidId, setSelectedKidId] = useState("");
   const [completingChoreId, setCompletingChoreId] = useState("");
   useEffect(() => {
+    if (!userEmail) return;
     void loadKids();
     void loadChores();
-  }, []);
+  }, [userEmail]);
 
   if (!userEmail) {
-    return <Navigate to="/login" replace />;
+    return <Landing />;
   }
 
   async function loadKids() {
