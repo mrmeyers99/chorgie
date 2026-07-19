@@ -1,42 +1,52 @@
-import { useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { api } from '../lib/api.js'
-import styles from './Login.module.css'
+import { useState } from "react";
+import { Link, Navigate, useNavigate } from "react-router-dom";
+import { api } from "../lib/api.js";
+import { deriveHouseholdKey } from "../lib/crypto.js";
+import { setHouseholdKey } from "../lib/keyStore.js";
+import styles from "./Login.module.css";
 
 export default function Login() {
-  const navigate = useNavigate()
-  const [form, setForm] = useState({ email: '', password: '' })
-  const [error, setError] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const navigate = useNavigate();
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const userEmail = sessionStorage.getItem('userEmail')
+  const userEmail = sessionStorage.getItem("userEmail");
   if (userEmail) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/" replace />;
   }
 
   function handleChange(e) {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
 
   async function handleSubmit(e) {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
     try {
       const data = await api.login({
         email: form.email,
         password: form.password,
-      })
-      sessionStorage.setItem('accessToken', data.accessToken)
+      });
+      sessionStorage.setItem("accessToken", data.accessToken);
       if (data.csrfToken) {
-        sessionStorage.setItem('csrfToken', data.csrfToken)
+        sessionStorage.setItem("csrfToken", data.csrfToken);
       }
-      sessionStorage.setItem('userEmail', data.user.email)
-      navigate('/')
+      sessionStorage.setItem("userEmail", data.user.email);
+
+      const household = await api.getHousehold();
+      const { hek } = await deriveHouseholdKey(
+        form.password,
+        household.enc_salt,
+      );
+      await setHouseholdKey(hek);
+
+      navigate("/");
     } catch (err) {
-      setError(err.message ?? 'Login failed. Please try again.')
+      setError(err.message ?? "Login failed. Please try again.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -82,7 +92,7 @@ export default function Login() {
           </div>
 
           <button type="submit" disabled={loading} className={styles.submit}>
-            {loading ? 'Logging in…' : 'Log in'}
+            {loading ? "Logging in…" : "Log in"}
           </button>
         </form>
 
@@ -91,5 +101,5 @@ export default function Login() {
         </p>
       </div>
     </main>
-  )
+  );
 }

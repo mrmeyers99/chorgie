@@ -7,22 +7,33 @@ export const choresRouter = Router();
 
 const RECURRENCE_TYPES = ["ad-hoc", "recurring", "always-available"] as const;
 
-const createChoreSchema = z.object({
-  enc_name: z.string().min(1),
-  enc_description: z.string().optional(),
-  reward_amount: z.number().nonnegative(),
-  recurrence_type: z.enum(RECURRENCE_TYPES),
-  enc_recurrence_rule: z.string().optional(),
-  eligible_kids: z.array(z.string().uuid()).optional(),
-});
+const createChoreSchema = z
+  .object({
+    enc_name: z.string().min(1).max(20000),
+    enc_description: z.string().max(20000).optional(),
+    reward_amount: z.number().nonnegative(),
+    recurrence_type: z.enum(RECURRENCE_TYPES),
+    recurrence_interval_days: z.number().int().min(1).optional(),
+    eligible_kids: z.array(z.string().uuid()).optional(),
+  })
+  .refine(
+    (value) =>
+      value.recurrence_type !== "recurring" ||
+      value.recurrence_interval_days !== undefined,
+    {
+      message:
+        'recurrence_interval_days is required when recurrence_type is "recurring".',
+      path: ["recurrence_interval_days"],
+    },
+  );
 
 const updateChoreSchema = z
   .object({
-    enc_name: z.string().min(1).optional(),
-    enc_description: z.string().nullable().optional(),
+    enc_name: z.string().min(1).max(20000).optional(),
+    enc_description: z.string().max(20000).nullable().optional(),
     reward_amount: z.number().nonnegative().optional(),
     recurrence_type: z.enum(RECURRENCE_TYPES).optional(),
-    enc_recurrence_rule: z.string().nullable().optional(),
+    recurrence_interval_days: z.number().int().min(1).nullable().optional(),
     eligible_kids: z.array(z.string().uuid()).optional(),
     is_active: z.boolean().optional(),
   })
@@ -32,10 +43,21 @@ const updateChoreSchema = z
       value.enc_description !== undefined ||
       value.reward_amount !== undefined ||
       value.recurrence_type !== undefined ||
-      value.enc_recurrence_rule !== undefined ||
+      value.recurrence_interval_days !== undefined ||
       value.eligible_kids !== undefined ||
       value.is_active !== undefined,
     { message: "At least one field is required." },
+  )
+  .refine(
+    (value) =>
+      value.recurrence_type !== "recurring" ||
+      (value.recurrence_interval_days !== undefined &&
+        value.recurrence_interval_days !== null),
+    {
+      message:
+        'recurrence_interval_days is required when recurrence_type is "recurring".',
+      path: ["recurrence_interval_days"],
+    },
   );
 
 type ChoreRow = {
@@ -45,7 +67,7 @@ type ChoreRow = {
   enc_description: string | null;
   reward_amount: string;
   recurrence_type: string;
-  enc_recurrence_rule: string | null;
+  recurrence_interval_days: number | null;
   eligible_kids: string[];
   is_active: boolean;
   is_available: boolean;
@@ -59,7 +81,7 @@ type ChoreAvailabilityRow = {
   household_id: string;
   reward_amount: string;
   recurrence_type: string;
-  enc_recurrence_rule: string | null;
+  recurrence_interval_days: number | null;
   eligible_kids: string[];
   is_active: boolean;
   last_completed_at: string | null;
@@ -69,15 +91,6 @@ type ChoreAvailabilityRow = {
 const completeChoreSchema = z.object({
   kid_id: z.string().uuid(),
 });
-
-function getRecurrenceDays(rule: string | null) {
-  if (!rule) return null;
-  const parsed = Number.parseInt(rule, 10);
-  if (!Number.isFinite(parsed) || parsed < 1) {
-    return null;
-  }
-  return parsed;
-}
 
 function isChoreCurrentlyAvailable(chore: {
   recurrence_type: string;
@@ -119,7 +132,7 @@ choresRouter.get("/", async (_req, res) => {
   try {
     const result = await client.query<ChoreRow>(
       `SELECT cd.id, cd.household_id, cd.enc_name, cd.enc_description, cd.reward_amount,
-              cd.recurrence_type, cd.enc_recurrence_rule, cd.is_active,
+              cd.recurrence_type, cd.recurrence_interval_days, cd.is_active,
               cd.next_available_at, cd.created_at,
               COALESCE(
                 (SELECT ARRAY_AGG(cek.kid_id) FROM chore_eligible_kids cek WHERE cek.chore_id = cd.id),
@@ -174,7 +187,7 @@ choresRouter.post("/", requireAdminMode, async (req, res) => {
     enc_description,
     reward_amount,
     recurrence_type,
-    enc_recurrence_rule,
+    recurrence_interval_days,
     eligible_kids,
   } = parsed.data;
 
@@ -187,11 +200,9 @@ choresRouter.post("/", requireAdminMode, async (req, res) => {
         householdId,
       );
       if (!allExist) {
-        res
-          .status(400)
-          .json({
-            error: "eligible_kids must reference kids in this household.",
-          });
+        res.status(400).json({
+          error: "eligible_kids must reference kids in this household.",
+        });
         return;
       }
     }
@@ -199,17 +210,17 @@ choresRouter.post("/", requireAdminMode, async (req, res) => {
     await client.query("BEGIN");
     const result = await client.query<Omit<ChoreRow, "eligible_kids">>(
       `INSERT INTO chore_definitions
-         (household_id, enc_name, enc_description, reward_amount, recurrence_type, enc_recurrence_rule)
+         (household_id, enc_name, enc_description, reward_amount, recurrence_type, recurrence_interval_days)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, household_id, enc_name, enc_description, reward_amount,
-                 recurrence_type, enc_recurrence_rule, is_active, created_at`,
+                 recurrence_type, recurrence_interval_days, is_active, created_at`,
       [
         householdId,
         enc_name,
         enc_description ?? null,
         reward_amount,
         recurrence_type,
-        enc_recurrence_rule ?? null,
+        recurrence_interval_days ?? null,
       ],
     );
 
@@ -259,7 +270,7 @@ choresRouter.patch("/:id", requireAdminMode, async (req, res) => {
     enc_description,
     reward_amount,
     recurrence_type,
-    enc_recurrence_rule,
+    recurrence_interval_days,
     eligible_kids,
     is_active,
   } = parsed.data;
@@ -273,11 +284,9 @@ choresRouter.patch("/:id", requireAdminMode, async (req, res) => {
         householdId,
       );
       if (!allExist) {
-        res
-          .status(400)
-          .json({
-            error: "eligible_kids must reference kids in this household.",
-          });
+        res.status(400).json({
+          error: "eligible_kids must reference kids in this household.",
+        });
         return;
       }
     }
@@ -286,15 +295,15 @@ choresRouter.patch("/:id", requireAdminMode, async (req, res) => {
 
     const result = await client.query<Omit<ChoreRow, "eligible_kids">>(
       `UPDATE chore_definitions
-       SET enc_name             = COALESCE($3, enc_name),
-           enc_description      = CASE WHEN $4::boolean THEN $5 ELSE enc_description END,
-           reward_amount        = COALESCE($6, reward_amount),
-           recurrence_type      = COALESCE($7, recurrence_type),
-           enc_recurrence_rule  = CASE WHEN $8::boolean THEN $9 ELSE enc_recurrence_rule END,
-           is_active            = COALESCE($10, is_active)
+       SET enc_name                  = COALESCE($3, enc_name),
+           enc_description           = CASE WHEN $4::boolean THEN $5 ELSE enc_description END,
+           reward_amount             = COALESCE($6, reward_amount),
+           recurrence_type           = COALESCE($7, recurrence_type),
+           recurrence_interval_days  = CASE WHEN $8::boolean THEN $9 ELSE recurrence_interval_days END,
+           is_active                 = COALESCE($10, is_active)
        WHERE id = $1 AND household_id = $2
        RETURNING id, household_id, enc_name, enc_description, reward_amount,
-                 recurrence_type, enc_recurrence_rule, is_active, created_at`,
+                 recurrence_type, recurrence_interval_days, is_active, created_at`,
       [
         id,
         householdId,
@@ -303,8 +312,8 @@ choresRouter.patch("/:id", requireAdminMode, async (req, res) => {
         enc_description ?? null,
         reward_amount ?? null,
         recurrence_type ?? null,
-        enc_recurrence_rule !== undefined,
-        enc_recurrence_rule ?? null,
+        recurrence_interval_days !== undefined,
+        recurrence_interval_days ?? null,
         is_active ?? null,
       ],
     );
@@ -425,11 +434,9 @@ choresRouter.post(
 
       if (chore.recurrence_type !== "recurring") {
         await client.query("ROLLBACK");
-        res
-          .status(400)
-          .json({
-            error: "Can only override availability for recurring chores.",
-          });
+        res.status(400).json({
+          error: "Can only override availability for recurring chores.",
+        });
         return;
       }
 
@@ -490,7 +497,7 @@ choresRouter.post("/:id/complete", async (req, res) => {
     }
 
     const choreResult = await client.query<ChoreAvailabilityRow>(
-      `SELECT cd.id, cd.household_id, cd.reward_amount, cd.recurrence_type, cd.enc_recurrence_rule, cd.is_active,
+      `SELECT cd.id, cd.household_id, cd.reward_amount, cd.recurrence_type, cd.recurrence_interval_days, cd.is_active,
               cd.next_available_at,
               COALESCE(
                 (SELECT ARRAY_AGG(cek.kid_id) FROM chore_eligible_kids cek WHERE cek.chore_id = cd.id),
@@ -564,7 +571,7 @@ choresRouter.post("/:id/complete", async (req, res) => {
       );
     } else if (chore.recurrence_type === "recurring") {
       // Calculate next available time for recurring chores
-      const recurrenceDays = getRecurrenceDays(chore.enc_recurrence_rule);
+      const recurrenceDays = chore.recurrence_interval_days ?? null;
       const completedAt = new Date(completionResult.rows[0]?.completed_at);
       const nextAvailableAt = recurrenceDays
         ? new Date(completedAt.getTime() + recurrenceDays * 24 * 60 * 60 * 1000)

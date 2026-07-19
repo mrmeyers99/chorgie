@@ -52,7 +52,7 @@ const sampleChore = {
   enc_description: null,
   reward_amount: "2.50",
   recurrence_type: "ad-hoc",
-  enc_recurrence_rule: "enc-weekly-monday",
+  recurrence_interval_days: null,
   eligible_kids: [],
   is_active: true,
   is_available: true,
@@ -148,6 +148,20 @@ describe("POST /chores", () => {
 
     expect(res.status).toBe(201);
     expect(res.body.recurrence_type).toBe("always-available");
+  });
+
+  it("rejects a recurring chore without recurrence_interval_days", async () => {
+    const res = await request(app)
+      .post("/chores")
+      .set("Authorization", `Bearer ${makeAccessToken()}`)
+      .set("x-admin-mode-token", makeAdminModeToken())
+      .send({
+        enc_name: "enc-name",
+        reward_amount: 2.5,
+        recurrence_type: "recurring",
+      });
+
+    expect(res.status).toBe(400);
   });
 
   it("rejects an invalid recurrence_type", async () => {
@@ -348,7 +362,7 @@ describe("POST /chores/:id/complete", () => {
             household_id: "household-uuid",
             reward_amount: "2.50",
             recurrence_type: "recurring",
-            enc_recurrence_rule: "2",
+            recurrence_interval_days: 2,
             eligible_kids: [kidId],
             is_active: true,
             last_completed_at: null,
@@ -392,7 +406,7 @@ describe("POST /chores/:id/complete", () => {
             household_id: "household-uuid",
             reward_amount: "2.50",
             recurrence_type: "recurring",
-            enc_recurrence_rule: "3",
+            recurrence_interval_days: 3,
             eligible_kids: [kidId],
             is_active: true,
             last_completed_at: new Date().toISOString(),
@@ -434,7 +448,7 @@ describe("POST /chores/:id/complete", () => {
             household_id: "household-uuid",
             reward_amount: "2.50",
             recurrence_type: "ad-hoc",
-            enc_recurrence_rule: null,
+            recurrence_interval_days: null,
             eligible_kids: [kidId],
             is_active: true,
             last_completed_at: null,
@@ -477,7 +491,7 @@ describe("POST /chores/:id/complete", () => {
             household_id: "household-uuid",
             reward_amount: "2.50",
             recurrence_type: "always-available",
-            enc_recurrence_rule: null,
+            recurrence_interval_days: null,
             eligible_kids: [kidId],
             is_active: true,
             last_completed_at: null,
@@ -561,7 +575,7 @@ describe("POST /chores/:id/override-availability", () => {
             id: "chore-1",
             household_id: "household-uuid",
             recurrence_type: "recurring",
-            enc_recurrence_rule: "3",
+            recurrence_interval_days: 3,
             is_active: false,
             last_completed_at: new Date().toISOString(),
           },
@@ -590,7 +604,7 @@ describe("POST /chores/:id/override-availability", () => {
             id: "chore-1",
             household_id: "household-uuid",
             recurrence_type: "ad-hoc",
-            enc_recurrence_rule: null,
+            recurrence_interval_days: null,
             is_active: true,
             last_completed_at: null,
           },

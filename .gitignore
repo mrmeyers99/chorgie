@@ -141,3 +141,6 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# verify-e2e-encryption script output
+web/scripts/verify-e2e-encryption/screenshots/

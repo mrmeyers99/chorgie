@@ -9,7 +9,6 @@ The PRD lives at `docs/PRD.md`. Keep it current as requirements evolve: whenever
 The data model lives in `README.md` (a mermaid ER diagram), not in the PRD — PRD §8 just points there. **Whenever a migration is added, changed, or removed in `api/migrations/*.js`, update the ER diagram in `README.md` to match** (tables, columns, FKs, relationships) before considering the task complete. Treat it the same as the PRD: schema drift between the migrations and the diagram is a bug.
 
 **Known PRD drift** — the implementation has diverged from the PRD in ways not yet reconciled:
-- The PRD's client-side E2E encryption model (§5) is *not implemented*. Fields named `enc_name`, `enc_description`, `enc_display_name`, `enc_recurrence_rule`, `enc_notes` are stored and transmitted as **plaintext** — there is no encrypt/decrypt path wired up anywhere in `web/src`. `web/src/lib/crypto.js` only derives a household key (PBKDF2 → AES-GCM `CryptoKey`); nothing calls `.encrypt()`/`.decrypt()` with it yet. Don't assume the `enc_` prefix means encrypted.
 - PRD §8/§9 historically described a `chore_instances` table with client-computed due dates and per-instance optimistic locking (`version`). That was never built. Completions are tracked directly in `chore_completions`, and the API surface is `POST /chores/:id/complete` (not the PRD's `/chores/:id/instances/:instanceId/complete`). There's also no "undo completion" endpoint despite PRD §6.5 describing one.
 - `POST /chores/:id/override-availability` (admin-only, lets an admin reopen a `recurring` chore early by setting `next_available_at = NOW()`) isn't listed in the PRD §9 API surface.
 
@@ -60,6 +59,19 @@ Requires a root `.env` with `POSTGRES_USER`, `POSTGRES_PASSWORD`, `JWT_SECRET` (
 
 CI (`.github/workflows/ci.yml`) runs lint → build → test separately for `api` and `web` on every push/PR to `main`, with no services — API tests don't need a live Postgres because the DB layer is mocked (see below).
 
+### Manual UI verification (Playwright)
+
+Ad-hoc Playwright smoke tests live under `web/scripts/verify-*/` — standalone scripts that drive a real browser against a running dev stack, each with its own `package.json`/lockfile (with `playwright` as a dependency) deliberately kept out of the `web` workspace so `npm ci` in CI never triggers Playwright's browser download. E.g. `web/scripts/verify-e2e-encryption/` registers a household, creates a kid and a recurring chore, and asserts the raw API response for `enc_*` fields is ciphertext (not the plaintext string) while the UI still renders the decrypted value — including after a full page reload, which is the real test of whether the household key survived (it's persisted in IndexedDB, not a bare in-memory variable).
+
+```bash
+cd web/scripts/verify-e2e-encryption
+npm install
+npx playwright install chromium   # one-time browser download
+WEB_URL=http://localhost:5173 API_URL=http://localhost:3000 node verify.mjs
+```
+
+Requires the API + web dev server already running (e.g. `docker compose up`) and the web server's origin to match the API's `CORS_ORIGIN` (default `http://localhost:5173`). Screenshots land in `web/scripts/verify-*/screenshots/` (gitignored). These scripts register throw-away test data and do not clean it up — point them at a disposable dev database, or delete the rows manually afterward if you're pointed at shared data.
+
 ## API architecture (`api/src`)
 
 - `app.ts` — builds the Express app: CORS (credentialed, origin from `CORS_ORIGIN`), cookie parsing, three separate rate limiters (general/auth/admin), then mounts routers. `requireAuth` is applied per-router at mount time in `app.ts`, not inside each router file.
@@ -74,7 +86,7 @@ CI (`.github/workflows/ci.yml`) runs lint → build → test separately for `api
 
 Chore recurrence (`routes/chores.ts`) has three `recurrence_type`s — `ad-hoc`, `recurring`, `always-available` — with different completion behavior:
 - `ad-hoc`: `is_active` flips to `false` on completion; only an admin can reactivate it (via `PATCH /chores/:id`).
-- `recurring`: `next_available_at` is computed and stored on completion (from `enc_recurrence_rule`'s day count); the chore is unavailable until that timestamp passes. `POST /chores/:id/override-availability` lets an admin force it available immediately.
+- `recurring`: `next_available_at` is computed and stored on completion (from the plaintext `recurrence_interval_days` column); the chore is unavailable until that timestamp passes. `POST /chores/:id/override-availability` lets an admin force it available immediately.
 - `always-available`: stays active and immediately available again after completion, no cooldown.
 
 Availability is checked in two places that must be kept in sync when this logic changes: `isChoreCurrentlyAvailable()` (JS, used inside the `POST /:id/complete` transaction with a `FOR UPDATE OF cd` row lock) and an equivalent SQL `CASE` in the `GET /chores` listing query.
@@ -90,7 +102,7 @@ Availability is checked in two places that must be kept in sync when this logic 
 - `/admin` and `/chores` are both wrapped in `AdminLayout.jsx`, which owns the admin-mode PIN gate (blocks rendering its `children` until `sessionStorage.adminModeToken` is set) and the side nav between Family/Chores/Exit Admin. Admin-mode entry lives only in this layout, not on the home page.
 - `lib/api.js` — the only place `fetch` is called. `request()` centralizes base URL (`VITE_API_URL`, default `http://localhost:3000`), JSON headers, `credentials: 'include'`, and error unwrapping from zod's `flatten()`-shaped error bodies. A 401 on any authenticated path triggers `handleExpiredSession()`, which clears `sessionStorage` and hard-redirects to `/login`.
 - Auth/session state lives in `sessionStorage` (`accessToken`, `csrfToken`, `adminModeToken`, `userEmail`) — not React context or a state library. Any page that needs auth state reads `sessionStorage` directly.
-- `lib/crypto.js` — currently only `deriveHouseholdKey()` (PBKDF2 → AES-GCM key). See the PRD-drift note above: no field encryption is wired up yet, so don't assume `enc_*` payload fields are actually encrypted when writing new UI code.
+- `lib/crypto.js` — `deriveHouseholdKey(password, existingEncSalt?)` (PBKDF2 → AES-GCM key; omit the salt to generate a fresh one at registration, pass the household's stored `enc_salt` to re-derive the same key at login), plus `encryptField`/`decryptField`/`safeDecryptField` for AES-256-GCM field-level encryption (envelope: `base64(iv[12 bytes] || ciphertext+tag)`, one column per field, no separate IV column). `lib/keyStore.js` persists the derived (non-extractable) key in IndexedDB — not a bare module variable — so it survives a page reload; kids use the same already-logged-in tab as the admin with no login of their own. All `enc_*` fields (`enc_name`, `enc_description`, `enc_display_name`, `enc_notes`) are genuinely encrypted end-to-end; pages decrypt them once in-place right after fetching (see `App.jsx`/`AdminFamily.jsx`/`ChoreAdmin.jsx`/`PaymentHistory.jsx`'s load functions) so render code just reads plaintext. `chore_definitions.recurrence_interval_days` is a plaintext integer (not `enc_`-prefixed) since the server needs it unencrypted to schedule `next_available_at`.
 - Avatar assets live in `public/avatars/corgi-N.png`; the list of selectable IDs is defined wherever the avatar picker renders (currently `AdminFamily.jsx`) and must stay in sync with the files present in `public/avatars/` (and `dist/avatars/` after build).
 
 ## Data model
