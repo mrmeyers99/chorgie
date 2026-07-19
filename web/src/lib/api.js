@@ -163,16 +163,13 @@ export const api = {
       headers: { ...getAuthHeader(), ...getAdminModeHeader() },
       body: JSON.stringify(payload),
     }),
-  getPayouts: (kidId) =>
-    request(`/payouts${kidId ? `?kid_id=${kidId}` : ''}`, {
-      headers: { ...getAuthHeader(), ...getAdminModeHeader() },
-    }),
   getPayout: (id) =>
     request(`/payouts/${id}`, {
       headers: { ...getAuthHeader(), ...getAdminModeHeader() },
     }),
-  getKidCompletions: (kidId) =>
-    request(`/kids/${kidId}/completions`, {
-      headers: getAuthHeader(),
-    }),
+  getKidHistory: (kidId, { limit = 20, cursor } = {}) =>
+    request(
+      `/kids/${kidId}/history?limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
+      { headers: getAuthHeader() },
+    ),
 }

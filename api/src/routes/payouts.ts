@@ -65,11 +65,9 @@ payoutsRouter.post("/", requireAdminMode, async (req, res) => {
 
     if (amount > balance) {
       await client.query("ROLLBACK");
-      res
-        .status(400)
-        .json({
-          error: "Payout amount cannot exceed the kid's current balance.",
-        });
+      res.status(400).json({
+        error: "Payout amount cannot exceed the kid's current balance.",
+      });
       return;
     }
 
@@ -94,46 +92,6 @@ payoutsRouter.post("/", requireAdminMode, async (req, res) => {
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
-  } finally {
-    client.release();
-  }
-});
-
-payoutsRouter.get("/", async (req, res) => {
-  const householdId = res.locals.auth?.householdId as string | undefined;
-  if (!householdId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-
-  const kidIdFilter = req.query.kid_id as string | undefined;
-
-  // Validate kid_id if provided
-  if (kidIdFilter) {
-    const kidIdValidation = z.string().uuid().safeParse(kidIdFilter);
-    if (!kidIdValidation.success) {
-      res.status(400).json({ error: "Invalid kid_id parameter" });
-      return;
-    }
-  }
-
-  const client = await pool.connect();
-  try {
-    let query = `SELECT id, household_id, kid_id, amount, enc_notes, paid_at, created_at
-                 FROM payouts
-                 WHERE household_id = $1`;
-    const params: unknown[] = [householdId];
-
-    if (kidIdFilter) {
-      query += ` AND kid_id = $2`;
-      params.push(kidIdFilter);
-    }
-
-    query += ` ORDER BY paid_at DESC`;
-
-    const result = await client.query<PayoutRow>(query, params);
-
-    res.status(200).json({ payouts: result.rows });
   } finally {
     client.release();
   }

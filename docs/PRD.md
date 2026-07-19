@@ -140,7 +140,7 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 - Each payout is **per kid** — kids can be paid on completely independent schedules, and payments can be **partial**: the admin enters any amount greater than $0 and no more than the kid's current balance.
 - The entered amount is recorded as a new payout ledger entry and subtracted from the kid's balance. Payouts are not tied to any specific completed chore — completed chores remain a separate historical log, independent of what's been paid.
 - The admin can optionally add a **note** to the payout (e.g., "cash", "bank transfer", or "cash for chores + $5 bonus") before confirming.
-- Payment history is retained and viewable per kid, alongside their full chore-completion log.
+- Payment history is retained and viewable per kid as a single paginated ledger that interleaves payouts with completed chores in reverse-chronological order, with a "Load more" control to page further back.
 
 ### 6.8 Timezone & Locale
 
@@ -201,9 +201,9 @@ POST   /chores/:id/instances/:instanceId/complete    – mark done (kid); 409 on
 DELETE /chores/:id/instances/:instanceId/complete    – undo completion (kid); rejected if instance is already paid (paid_at is set)
 
 GET    /kids/:id/balance       – current balance for a kid
+GET    /kids/:id/history       – unified, cursor-paginated ledger (chore completions + payouts) for a kid, ?limit=&cursor=
 
 POST   /payouts                – record a payment of a given amount (≤ current balance) for a kid; decrements balance (admin)
-GET    /payouts                – list payout history, optionally filtered by ?kid_id=
 GET    /payouts/:id            – get a single payout
 ```
 

@@ -232,3 +232,35 @@
   color: var(--accent);
   font-size: 15px;
 }
+
+.entryCompletion {
+  border-left: 3px solid var(--accent);
+}
+
+.entryPayout {
+  border-left: 3px solid var(--tan);
+}
+
+.loadMoreBtn {
+  display: block;
+  margin: 16px auto 0;
+  background: var(--accent-bg);
+  color: var(--accent);
+  border: 1.5px solid var(--accent-border);
+  padding: 9px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  font-family: var(--sans);
+}
+
+.loadMoreBtn:hover {
+  opacity: 0.88;
+}
+
+.loadMoreBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

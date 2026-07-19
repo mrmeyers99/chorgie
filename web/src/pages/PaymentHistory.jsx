@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { safeDecryptField } from "../lib/crypto.js";
@@ -12,6 +12,24 @@ const AVATAR_EMOJI = {
   "corgi-4": "🐾",
 };
 
+const HISTORY_PAGE_SIZE = 20;
+
+async function decryptHistoryEntries(hek, rawEntries) {
+  return Promise.all(
+    rawEntries.map(async (entry) => ({
+      ...entry,
+      chore_name:
+        entry.type === "completion"
+          ? await safeDecryptField(hek, entry.chore_name)
+          : entry.chore_name,
+      enc_notes:
+        entry.type === "payout"
+          ? await safeDecryptField(hek, entry.enc_notes)
+          : entry.enc_notes,
+    })),
+  );
+}
+
 function PaymentHistory() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -19,11 +37,13 @@ function PaymentHistory() {
   const kidId = searchParams.get("kid");
   const userEmail = sessionStorage.getItem("userEmail");
   const backTo = location.state?.from;
+  const hekRef = useRef(null);
 
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
-  const [completions, setCompletions] = useState([]);
-  const [payouts, setPayouts] = useState([]);
+  const [entries, setEntries] = useState([]);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [kids, setKids] = useState([]);
   const [selectedKid, setSelectedKid] = useState(null);
 
@@ -37,12 +57,13 @@ function PaymentHistory() {
       setLoading(true);
       setStatus("");
       setSelectedKid(null);
-      setCompletions([]);
-      setPayouts([]);
+      setEntries([]);
+      setNextCursor(null);
 
       try {
         const hek = await requireHouseholdKey();
         if (!hek) return;
+        hekRef.current = hek;
 
         const kidsData = await api.getKids();
         const decryptedKids = await Promise.all(
@@ -62,24 +83,15 @@ function PaymentHistory() {
 
         if (targetKid) {
           setSelectedKid(targetKid);
-          const [completionsData, payoutsData] = await Promise.all([
-            api.getKidCompletions(targetKid.id),
-            api.getPayouts(targetKid.id),
-          ]);
-          const decryptedCompletions = await Promise.all(
-            (completionsData.completions ?? []).map(async (completion) => ({
-              ...completion,
-              chore_name: await safeDecryptField(hek, completion.chore_name),
-            })),
+          const historyData = await api.getKidHistory(targetKid.id, {
+            limit: HISTORY_PAGE_SIZE,
+          });
+          const decrypted = await decryptHistoryEntries(
+            hek,
+            historyData.entries ?? [],
           );
-          const decryptedPayouts = await Promise.all(
-            (payoutsData.payouts ?? []).map(async (payout) => ({
-              ...payout,
-              enc_notes: await safeDecryptField(hek, payout.enc_notes),
-            })),
-          );
-          setCompletions(decryptedCompletions);
-          setPayouts(decryptedPayouts);
+          setEntries(decrypted);
+          setNextCursor(historyData.next_cursor ?? null);
         } else if (kidId) {
           setStatus("Kid not found.");
         }
@@ -92,6 +104,27 @@ function PaymentHistory() {
 
     void loadData();
   }, [userEmail, kidId, navigate]);
+
+  async function handleLoadMore() {
+    if (!selectedKid || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const historyData = await api.getKidHistory(selectedKid.id, {
+        limit: HISTORY_PAGE_SIZE,
+        cursor: nextCursor,
+      });
+      const decrypted = await decryptHistoryEntries(
+        hekRef.current,
+        historyData.entries ?? [],
+      );
+      setEntries((prev) => [...prev, ...decrypted]);
+      setNextCursor(historyData.next_cursor ?? null);
+    } catch (err) {
+      setStatus(err.message ?? "Failed to load more history.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   function handleKidSelect(kid) {
     navigate(`/history?kid=${kid.id}`, { state: location.state });
@@ -182,52 +215,49 @@ function PaymentHistory() {
             </button>
           )}
 
-          {completions.length > 0 ? (
+          {entries.length > 0 ? (
             <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Completed Chores</h3>
+              <h3 className={styles.sectionTitle}>History</h3>
               <ul className={styles.completionsList}>
-                {completions.map((completion) => (
-                  <li key={completion.id} className={styles.completionItem}>
+                {entries.map((entry) => (
+                  <li
+                    key={entry.id}
+                    className={`${styles.completionItem} ${
+                      entry.type === "payout"
+                        ? styles.entryPayout
+                        : styles.entryCompletion
+                    }`}
+                  >
                     <div className={styles.completionInfo}>
                       <span className={styles.choreName}>
-                        {completion.chore_name}
+                        {entry.type === "completion"
+                          ? entry.chore_name
+                          : entry.enc_notes || "Payment"}
                       </span>
                       <span className={styles.completionDate}>
-                        {formatDate(completion.completed_at)}
+                        {formatDate(entry.occurred_at)}
                       </span>
                     </div>
                     <span className={styles.amount}>
-                      ${Number(completion.reward_amount).toFixed(2)}
+                      {entry.type === "completion" ? "+" : "−"}$
+                      {Number(entry.amount).toFixed(2)}
                     </span>
                   </li>
                 ))}
               </ul>
+              {nextCursor && (
+                <button
+                  type="button"
+                  onClick={handleLoadMore}
+                  className={styles.loadMoreBtn}
+                  disabled={loadingMore}
+                >
+                  {loadingMore ? "Loading…" : "Load more"}
+                </button>
+              )}
             </div>
           ) : (
-            <p className={styles.emptyState}>No chores completed yet.</p>
-          )}
-
-          {payouts.length > 0 && (
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Payments Made</h3>
-              <ul className={styles.completionsList}>
-                {payouts.map((payout) => (
-                  <li key={payout.id} className={styles.completionItem}>
-                    <div className={styles.completionInfo}>
-                      <span className={styles.choreName}>
-                        {payout.enc_notes || "Payment"}
-                      </span>
-                      <span className={styles.completionDate}>
-                        {formatDate(payout.paid_at)}
-                      </span>
-                    </div>
-                    <span className={styles.amount}>
-                      ${Number(payout.amount).toFixed(2)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <p className={styles.emptyState}>No history yet.</p>
           )}
         </div>
       ) : kids.length === 0 && !loading ? (
