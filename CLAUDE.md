@@ -61,16 +61,18 @@ CI (`.github/workflows/ci.yml`) runs lint → build → test separately for `api
 
 ### Manual UI verification (Playwright)
 
-Ad-hoc Playwright smoke tests live under `web/scripts/verify-*/` — standalone scripts that drive a real browser against a running dev stack, each with its own `package.json`/lockfile (with `playwright` as a dependency) deliberately kept out of the `web` workspace so `npm ci` in CI never triggers Playwright's browser download. E.g. `web/scripts/verify-e2e-encryption/` registers a household, creates a kid and a recurring chore, and asserts the raw API response for `enc_*` fields is ciphertext (not the plaintext string) while the UI still renders the decrypted value — including after a full page reload, which is the real test of whether the household key survived (it's persisted in IndexedDB, not a bare in-memory variable).
+Ad-hoc Playwright smoke tests live under `web/scripts/verify-*/` — standalone scripts that drive a real browser against a running dev stack, each with its own `package.json`/lockfile (with `playwright` as a dependency) deliberately kept out of the `web` workspace so `npm ci` in CI never triggers Playwright's browser download.
+- `web/scripts/verify-history-link/` registers a household → enters Admin Mode → clicks "History" on a kid tile → confirms the back button returns to `/admin`.
+- `web/scripts/verify-e2e-encryption/` registers a household, creates a kid and a recurring chore, and asserts the raw API response for `enc_*` fields is ciphertext (not the plaintext string) while the UI still renders the decrypted value — including after a full page reload, which is the real test of whether the household key survived (it's persisted in IndexedDB, not a bare in-memory variable).
 
 ```bash
-cd web/scripts/verify-e2e-encryption
+cd web/scripts/<verify-script-name>
 npm install
 npx playwright install chromium   # one-time browser download
 WEB_URL=http://localhost:5173 API_URL=http://localhost:3000 node verify.mjs
 ```
 
-Requires the API + web dev server already running (e.g. `docker compose up`) and the web server's origin to match the API's `CORS_ORIGIN` (default `http://localhost:5173`). Screenshots land in `web/scripts/verify-*/screenshots/` (gitignored). These scripts register throw-away test data and do not clean it up — point them at a disposable dev database, or delete the rows manually afterward if you're pointed at shared data.
+Requires the API + web dev server already running (e.g. `docker compose up`) and the web server's origin to match the API's `CORS_ORIGIN` (default `http://localhost:5173`) — if you're testing a worktree/branch other than what's mounted in the `web` container, `docker compose stop web` first and run `npm run dev --workspace web -- --port 5173 --strictPort` in its place. Screenshots land in `web/scripts/verify-*/screenshots/` (gitignored). These scripts register throw-away test data and do not clean it up — point them at a disposable dev database, or delete the rows manually afterward if you're pointed at shared data.
 
 ## API architecture (`api/src`)
 

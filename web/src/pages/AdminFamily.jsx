@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { encryptField, safeDecryptField } from "../lib/crypto.js";
 import { requireHouseholdKey } from "../lib/keyStore.js";
@@ -254,6 +254,13 @@ export default function AdminFamily() {
                     Mark Paid
                   </button>
                 )}
+                <Link
+                  to={`/history?kid=${kid.id}`}
+                  state={{ from: "/admin" }}
+                  className={`${styles.btn} ${styles.btnGhost}`}
+                >
+                  History
+                </Link>
                 <button
                   type="button"
                   onClick={() => void handleDeleteKid(kid.id)}

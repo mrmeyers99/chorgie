@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { safeDecryptField } from "../lib/crypto.js";
 import { requireHouseholdKey } from "../lib/keyStore.js";
@@ -14,9 +14,11 @@ const AVATAR_EMOJI = {
 
 function PaymentHistory() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const kidId = searchParams.get("kid");
   const userEmail = sessionStorage.getItem("userEmail");
+  const backTo = location.state?.from;
 
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
@@ -92,7 +94,7 @@ function PaymentHistory() {
   }, [userEmail, kidId, navigate]);
 
   function handleKidSelect(kid) {
-    navigate(`/history?kid=${kid.id}`);
+    navigate(`/history?kid=${kid.id}`, { state: location.state });
   }
 
   function formatDate(dateString) {
@@ -116,10 +118,10 @@ function PaymentHistory() {
         <h1 className={styles.title}>Payment History</h1>
         <button
           type="button"
-          onClick={() => navigate("/")}
+          onClick={() => navigate(backTo ?? "/")}
           className={styles.backButton}
         >
-          ← Back to Home
+          {backTo ? "← Back to Admin" : "← Back to Home"}
         </button>
       </header>
 
@@ -173,7 +175,7 @@ function PaymentHistory() {
 
           {kids.length > 1 && (
             <button
-              onClick={() => navigate("/history")}
+              onClick={() => navigate("/history", { state: location.state })}
               className={styles.changeKidBtn}
             >
               Change Kid
