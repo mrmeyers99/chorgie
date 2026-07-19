@@ -3,6 +3,7 @@ import { Navigate, Link } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { encryptField, safeDecryptField } from "../lib/crypto.js";
 import { requireHouseholdKey } from "../lib/keyStore.js";
+import Modal from "../components/Modal.jsx";
 import AdminLayout from "./AdminLayout.jsx";
 import styles from "./AdminFamily.module.css";
 
@@ -37,6 +38,7 @@ export default function AdminFamily() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editKidId, setEditKidId] = useState("");
   const [editName, setEditName] = useState("");
+  const [savingName, setSavingName] = useState(false);
 
   useEffect(() => {
     void loadKids();
@@ -104,12 +106,14 @@ export default function AdminFamily() {
 
   async function handleSaveEditName(e) {
     e.preventDefault();
+    if (savingName) return;
     setStatus("");
     const trimmed = editName.trim();
     if (!trimmed) {
       setStatus("Enter a name.");
       return;
     }
+    setSavingName(true);
     try {
       const hek = await requireHouseholdKey();
       if (!hek) return;
@@ -123,6 +127,8 @@ export default function AdminFamily() {
       await loadKids();
     } catch (err) {
       setStatus(err.message ?? "Failed to update kid name.");
+    } finally {
+      setSavingName(false);
     }
   }
 
@@ -322,90 +328,88 @@ export default function AdminFamily() {
       )}
 
       {showEditDialog && (
-        <div className={styles.modal}>
-          <div className={styles.modalContent}>
-            <form onSubmit={handleSaveEditName}>
-              <h2>Edit Kid Name</h2>
-              <div className={styles.formRow}>
-                <label htmlFor="editKidName">Display name</label>
-                <input
-                  id="editKidName"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  placeholder="Kid's name"
-                  required
-                  autoFocus
-                />
-              </div>
-              <div className={styles.formActions}>
-                <button
-                  type="submit"
-                  className={`${styles.btn} ${styles.btnPrimary}`}
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCancelEdit}
-                  className={`${styles.btn} ${styles.btnGhost}`}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <Modal title="Edit Kid Name" onClose={handleCancelEdit}>
+          <form onSubmit={handleSaveEditName}>
+            <h2>Edit Kid Name</h2>
+            <div className={styles.formRow}>
+              <label htmlFor="editKidName">Display name</label>
+              <input
+                id="editKidName"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Kid's name"
+                required
+                autoFocus
+              />
+            </div>
+            <div className={styles.formActions}>
+              <button
+                type="submit"
+                disabled={savingName}
+                className={`${styles.btn} ${styles.btnPrimary}`}
+              >
+                {savingName ? "Saving…" : "Save"}
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                disabled={savingName}
+                className={`${styles.btn} ${styles.btnGhost}`}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {showPayoutDialog && payoutKid && (
-        <div className={styles.modal}>
-          <div className={styles.modalContent}>
-            <form onSubmit={handleMarkPaid}>
-              <h2>Record a Payment</h2>
-              <p>
-                <strong>{payoutKid.enc_display_name}</strong>&apos;s current
-                balance is ${Number(payoutKid.balance ?? 0).toFixed(2)}.
-              </p>
-              <div className={styles.formRow}>
-                <label htmlFor="payoutAmount">Amount</label>
-                <input
-                  id="payoutAmount"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  max={Number(payoutKid.balance ?? 0)}
-                  value={payoutAmount}
-                  onChange={(e) => setPayoutAmount(e.target.value)}
-                  required
-                />
-              </div>
-              <div className={styles.formRow}>
-                <label htmlFor="payoutNotes">Notes (optional)</label>
-                <input
-                  id="payoutNotes"
-                  value={payoutNotes}
-                  onChange={(e) => setPayoutNotes(e.target.value)}
-                  placeholder="e.g., cash, bank transfer, bonus"
-                />
-              </div>
-              <div className={styles.formActions}>
-                <button
-                  type="submit"
-                  className={`${styles.btn} ${styles.btnPrimary}`}
-                >
-                  Confirm Payment
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCancelPayout}
-                  className={`${styles.btn} ${styles.btnGhost}`}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <Modal title="Record a Payment" onClose={handleCancelPayout}>
+          <form onSubmit={handleMarkPaid}>
+            <h2>Record a Payment</h2>
+            <p>
+              <strong>{payoutKid.enc_display_name}</strong>&apos;s current
+              balance is ${Number(payoutKid.balance ?? 0).toFixed(2)}.
+            </p>
+            <div className={styles.formRow}>
+              <label htmlFor="payoutAmount">Amount</label>
+              <input
+                id="payoutAmount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                max={Number(payoutKid.balance ?? 0)}
+                value={payoutAmount}
+                onChange={(e) => setPayoutAmount(e.target.value)}
+                required
+              />
+            </div>
+            <div className={styles.formRow}>
+              <label htmlFor="payoutNotes">Notes (optional)</label>
+              <input
+                id="payoutNotes"
+                value={payoutNotes}
+                onChange={(e) => setPayoutNotes(e.target.value)}
+                placeholder="e.g., cash, bank transfer, bonus"
+              />
+            </div>
+            <div className={styles.formActions}>
+              <button
+                type="submit"
+                className={`${styles.btn} ${styles.btnPrimary}`}
+              >
+                Confirm Payment
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelPayout}
+                className={`${styles.btn} ${styles.btnGhost}`}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
     </AdminLayout>
   );
