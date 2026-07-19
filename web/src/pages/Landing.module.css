@@ -71,7 +71,29 @@
   font-size: 17px;
   color: var(--text);
   max-width: 560px;
-  margin: 0 auto 32px;
+  margin: 0 auto 24px;
+}
+
+.trustBadges {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+
+.trustBadges span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--text-h);
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid var(--accent-border);
 }
 
 .heroActions {
