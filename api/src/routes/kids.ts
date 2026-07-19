@@ -27,6 +27,40 @@ const updateKidSchema = z
     { message: "At least one field is required." },
   );
 
+const historyQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  cursor: z.string().optional(),
+});
+
+const kidIdUuidRegex =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Matches the exact `to_char(... , 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')` shape the
+// history query produces — validated by regex rather than Date.parse, since
+// Date only has millisecond precision and would misvalidate/mangle this
+const cursorTimestampRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;
+
+function encodeHistoryCursor(occurredAt: string, id: string): string {
+  return Buffer.from(`${occurredAt}|${id}`).toString("base64url");
+}
+
+function decodeHistoryCursor(
+  cursor: string,
+): { occurredAt: string; id: string } | null {
+  const decoded = Buffer.from(cursor, "base64url").toString("utf8");
+  const sepIndex = decoded.lastIndexOf("|");
+  if (sepIndex === -1) return null;
+  const occurredAt = decoded.slice(0, sepIndex);
+  const cursorId = decoded.slice(sepIndex + 1);
+  if (
+    !cursorTimestampRegex.test(occurredAt) ||
+    !kidIdUuidRegex.test(cursorId)
+  ) {
+    return null;
+  }
+  return { occurredAt, id: cursorId };
+}
+
 kidsRouter.get("/", async (_req, res) => {
   const householdId = res.locals.auth?.householdId as string | undefined;
   if (!householdId) {
@@ -129,7 +163,7 @@ kidsRouter.delete("/:id", requireAdminMode, async (req, res) => {
   }
 });
 
-kidsRouter.get("/:id/completions", async (req, res) => {
+kidsRouter.get("/:id/history", async (req, res) => {
   const householdId = res.locals.auth?.householdId as string | undefined;
   if (!householdId) {
     res.status(401).json({ error: "Unauthorized" });
@@ -138,11 +172,23 @@ kidsRouter.get("/:id/completions", async (req, res) => {
 
   const { id } = req.params;
 
-  // Validate UUID format
-  const uuidRegex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(id)) {
+  if (!kidIdUuidRegex.test(id)) {
     res.status(400).json({ error: "Invalid kid ID format." });
+    return;
+  }
+
+  const parsedQuery = historyQuerySchema.safeParse(req.query);
+  if (!parsedQuery.success) {
+    res.status(400).json({ error: "Invalid limit or cursor parameter." });
+    return;
+  }
+  const { limit } = parsedQuery.data;
+
+  const cursor = parsedQuery.data.cursor
+    ? decodeHistoryCursor(parsedQuery.data.cursor)
+    : null;
+  if (parsedQuery.data.cursor && !cursor) {
+    res.status(400).json({ error: "Invalid cursor." });
     return;
   }
 
@@ -159,27 +205,71 @@ kidsRouter.get("/:id/completions", async (req, res) => {
       return;
     }
 
+    // payouts aren't tied to specific completions (PRD §6.7), so this has to be a
+    // UNION ALL of two independent logs, not a join
+    //
+    // occurred_at_raw carries full microsecond precision as text so the cursor never
+    // round-trips through a JS Date (millisecond precision), which would let two rows
+    // landing in the same millisecond permanently vanish from the ledger
     const result = await client.query<{
       id: string;
-      chore_id: string;
-      chore_name: string;
-      reward_amount: string;
-      completed_at: string;
+      type: "completion" | "payout";
+      occurred_at: string;
+      occurred_at_raw: string;
+      amount: string;
+      chore_id: string | null;
+      chore_name: string | null;
+      enc_notes: string | null;
     }>(
-      `SELECT
-        cc.id,
-        cc.chore_id,
-        cd.enc_name as chore_name, -- ciphertext despite the missing enc_ prefix
-        cc.reward_amount,
-        cc.completed_at
-       FROM chore_completions cc
-       JOIN chore_definitions cd ON cc.chore_id = cd.id AND cc.household_id = cd.household_id
-       WHERE cc.kid_id = $1 AND cc.household_id = $2
-       ORDER BY cc.completed_at DESC`,
-      [id, householdId],
+      `SELECT * FROM (
+         SELECT cc.id, 'completion' AS type, cc.completed_at AS occurred_at,
+                to_char(cc.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS occurred_at_raw,
+                cc.reward_amount AS amount, cc.chore_id,
+                cd.enc_name AS chore_name, NULL AS enc_notes
+         FROM chore_completions cc
+         JOIN chore_definitions cd ON cc.chore_id = cd.id AND cc.household_id = cd.household_id
+         WHERE cc.kid_id = $1 AND cc.household_id = $2
+           AND ($3::timestamptz IS NULL OR (cc.completed_at, cc.id) < ($3::timestamptz, $4::uuid))
+         UNION ALL
+         SELECT p.id, 'payout' AS type, p.paid_at AS occurred_at,
+                to_char(p.paid_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS occurred_at_raw,
+                p.amount, NULL AS chore_id,
+                NULL AS chore_name, p.enc_notes
+         FROM payouts p
+         WHERE p.kid_id = $1 AND p.household_id = $2
+           AND ($3::timestamptz IS NULL OR (p.paid_at, p.id) < ($3::timestamptz, $4::uuid))
+       ) combined
+       ORDER BY occurred_at DESC, id DESC
+       LIMIT $5`,
+      [
+        id,
+        householdId,
+        cursor?.occurredAt ?? null,
+        cursor?.id ?? null,
+        limit + 1,
+      ],
     );
 
-    res.status(200).json({ completions: result.rows });
+    const hasMore = result.rows.length > limit;
+    const pageRows = hasMore ? result.rows.slice(0, limit) : result.rows;
+    const nextCursor =
+      hasMore && pageRows.length > 0
+        ? encodeHistoryCursor(
+            pageRows[pageRows.length - 1].occurred_at_raw,
+            pageRows[pageRows.length - 1].id,
+          )
+        : null;
+    const entries = pageRows.map((row) => ({
+      id: row.id,
+      type: row.type,
+      occurred_at: row.occurred_at,
+      amount: row.amount,
+      chore_id: row.chore_id,
+      chore_name: row.chore_name,
+      enc_notes: row.enc_notes,
+    }));
+
+    res.status(200).json({ entries, next_cursor: nextCursor });
   } finally {
     client.release();
   }
