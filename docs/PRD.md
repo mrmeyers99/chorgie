@@ -204,9 +204,10 @@ GET    /payouts/:id            – get a single payout
 ## 9. UX Flows (summary)
 
 ### Onboarding
-1. Admin registers → household name, email, password, PIN, timezone, currency.
-2. Admin creates kid profiles (name + corgi avatar).
-3. Admin creates initial chore definitions.
+1. Unauthenticated visitor lands on `/` → sees a public landing page describing the app, with "Log in" and "Create household" calls to action (no app data is loaded or requested here).
+2. Admin registers → household name, email, password, PIN, timezone, currency.
+3. Admin creates kid profiles (name + corgi avatar).
+4. Admin creates initial chore definitions.
 
 ### Daily kid flow
 1. Home screen shows kid avatars.
