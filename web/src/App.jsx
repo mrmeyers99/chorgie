@@ -29,6 +29,7 @@ function Home() {
   const [loadingChores, setLoadingChores] = useState(false);
   const [selectedKidId, setSelectedKidId] = useState("");
   const [completingChoreId, setCompletingChoreId] = useState("");
+  const [expandedChoreIds, setExpandedChoreIds] = useState(() => new Set());
   useEffect(() => {
     if (!userEmail) return;
     void loadKids();
@@ -82,6 +83,18 @@ function Home() {
 
   function handleKidSelect(id) {
     setSelectedKidId(id);
+  }
+
+  function toggleChoreDescription(choreId) {
+    setExpandedChoreIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(choreId)) {
+        next.delete(choreId);
+      } else {
+        next.add(choreId);
+      }
+      return next;
+    });
   }
 
   async function handleCompleteChore(choreId) {
@@ -264,28 +277,52 @@ function Home() {
                     const daysOverdue = getDaysOverdue(chore);
                     return (
                       <li key={chore.id} className={styles.choreItem}>
-                        <span className={styles.choreName}>
-                          {chore.enc_name}
-                        </span>
-                        <span className={styles.choreMeta}>
-                          ${chore.reward_amount}
-                          {daysOverdue > 0 && (
-                            <span className={styles.overdueBadge}>
-                              {daysOverdue} day{daysOverdue === 1 ? "" : "s"}{" "}
-                              overdue
+                        <div className={styles.choreRow}>
+                          {chore.enc_description ? (
+                            <button
+                              type="button"
+                              onClick={() => toggleChoreDescription(chore.id)}
+                              className={styles.choreNameBtn}
+                              aria-expanded={expandedChoreIds.has(chore.id)}
+                            >
+                              <span className={styles.choreName}>
+                                {chore.enc_name}
+                              </span>
+                              <span className={styles.expandIcon}>
+                                {expandedChoreIds.has(chore.id) ? "▲" : "▼"}
+                              </span>
+                            </button>
+                          ) : (
+                            <span className={styles.choreName}>
+                              {chore.enc_name}
                             </span>
                           )}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => void handleCompleteChore(chore.id)}
-                          className={`${styles.btn} ${styles.btnPrimary}`}
-                          disabled={completingChoreId === chore.id}
-                        >
-                          {completingChoreId === chore.id
-                            ? "Completing…"
-                            : "Complete"}
-                        </button>
+                          <span className={styles.choreMeta}>
+                            ${chore.reward_amount}
+                            {daysOverdue > 0 && (
+                              <span className={styles.overdueBadge}>
+                                {daysOverdue} day{daysOverdue === 1 ? "" : "s"}{" "}
+                                overdue
+                              </span>
+                            )}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => void handleCompleteChore(chore.id)}
+                            className={`${styles.btn} ${styles.btnPrimary}`}
+                            disabled={completingChoreId === chore.id}
+                          >
+                            {completingChoreId === chore.id
+                              ? "Completing…"
+                              : "Complete"}
+                          </button>
+                        </div>
+                        {chore.enc_description &&
+                        expandedChoreIds.has(chore.id) ? (
+                          <p className={styles.choreDescription}>
+                            {chore.enc_description}
+                          </p>
+                        ) : null}
                       </li>
                     );
                   })}
@@ -307,29 +344,39 @@ function Home() {
                         key={chore.id}
                         className={`${styles.choreItem} ${styles.choreItemDisabled}`}
                       >
-                        <span className={styles.choreName}>
-                          {chore.enc_name}
-                        </span>
-                        <span className={styles.choreMeta}>
-                          ${chore.reward_amount}
-                          {chore.next_available_at && (
-                            <span
-                              style={{ marginLeft: "8px", fontSize: "0.85em" }}
-                            >
-                              Available{" "}
-                              {new Date(
-                                chore.next_available_at,
-                              ).toLocaleDateString()}
-                            </span>
-                          )}
-                        </span>
-                        <button
-                          type="button"
-                          className={`${styles.btn} ${styles.btnPrimary}`}
-                          disabled
-                        >
-                          Not Yet
-                        </button>
+                        <div className={styles.choreRow}>
+                          <span className={styles.choreName}>
+                            {chore.enc_name}
+                          </span>
+                          <span className={styles.choreMeta}>
+                            ${chore.reward_amount}
+                            {chore.next_available_at && (
+                              <span
+                                style={{
+                                  marginLeft: "8px",
+                                  fontSize: "0.85em",
+                                }}
+                              >
+                                Available{" "}
+                                {new Date(
+                                  chore.next_available_at,
+                                ).toLocaleDateString()}
+                              </span>
+                            )}
+                          </span>
+                          <button
+                            type="button"
+                            className={`${styles.btn} ${styles.btnPrimary}`}
+                            disabled
+                          >
+                            Not Yet
+                          </button>
+                        </div>
+                        {chore.enc_description ? (
+                          <p className={styles.choreDescription}>
+                            {chore.enc_description}
+                          </p>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
