@@ -118,7 +118,7 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 
 ### 6.5 Chore Completion
 
-- A kid sees chores assigned to them (or to "any kid") that are currently due.
+- A kid sees chores assigned to them (or to "any kid") that are currently due. For a **recurring** chore that's become due, the dashboard shows how many days it's been overdue (days elapsed since `next_available_at`), if any.
 - The kid dashboard displays an **"Upcoming Chores"** section showing recurring chores that are not yet available, sorted by when they will next become available. These chores are greyed out and not clickable.
 - Tapping **"Done!"** triggers an optimistic update and sends a completion record to the API.
 - **For recurring chores:** when marked complete, the server calculates and stores the `next_available_at` timestamp based on the recurrence interval.

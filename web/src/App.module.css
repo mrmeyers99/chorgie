@@ -336,6 +336,13 @@
   color: var(--text);
 }
 
+.overdueBadge {
+  margin-left: 8px;
+  font-size: 0.85em;
+  font-weight: 700;
+  color: var(--danger, #c0392b);
+}
+
 .emptyState {
   color: var(--text);
   font-size: 14px;

@@ -11,6 +11,14 @@ import { safeDecryptField } from "./lib/crypto.js";
 import { requireHouseholdKey, clearHouseholdKey } from "./lib/keyStore.js";
 import styles from "./App.module.css";
 
+function getDaysOverdue(chore) {
+  if (chore.recurrence_type !== "recurring" || !chore.next_available_at) {
+    return 0;
+  }
+  const ms = Date.now() - new Date(chore.next_available_at).getTime();
+  return Math.floor(ms / (24 * 60 * 60 * 1000));
+}
+
 function Home() {
   const navigate = useNavigate();
   const userEmail = sessionStorage.getItem("userEmail");
@@ -252,24 +260,35 @@ function Home() {
             <>
               {visibleChores.length > 0 && (
                 <ul className={styles.choreList}>
-                  {visibleChores.map((chore) => (
-                    <li key={chore.id} className={styles.choreItem}>
-                      <span className={styles.choreName}>{chore.enc_name}</span>
-                      <span className={styles.choreMeta}>
-                        ${chore.reward_amount}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => void handleCompleteChore(chore.id)}
-                        className={`${styles.btn} ${styles.btnPrimary}`}
-                        disabled={completingChoreId === chore.id}
-                      >
-                        {completingChoreId === chore.id
-                          ? "Completing…"
-                          : "Complete"}
-                      </button>
-                    </li>
-                  ))}
+                  {visibleChores.map((chore) => {
+                    const daysOverdue = getDaysOverdue(chore);
+                    return (
+                      <li key={chore.id} className={styles.choreItem}>
+                        <span className={styles.choreName}>
+                          {chore.enc_name}
+                        </span>
+                        <span className={styles.choreMeta}>
+                          ${chore.reward_amount}
+                          {daysOverdue > 0 && (
+                            <span className={styles.overdueBadge}>
+                              {daysOverdue} day{daysOverdue === 1 ? "" : "s"}{" "}
+                              overdue
+                            </span>
+                          )}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => void handleCompleteChore(chore.id)}
+                          className={`${styles.btn} ${styles.btnPrimary}`}
+                          disabled={completingChoreId === chore.id}
+                        >
+                          {completingChoreId === chore.id
+                            ? "Completing…"
+                            : "Complete"}
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
               {upcomingChores.length > 0 && (
