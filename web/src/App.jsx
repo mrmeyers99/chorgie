@@ -6,7 +6,7 @@ import Login from "./pages/Login.jsx";
 import ChoreAdmin from "./pages/ChoreAdmin.jsx";
 import PaymentHistory from "./pages/PaymentHistory.jsx";
 import AdminFamily from "./pages/AdminFamily.jsx";
-import { api } from "./lib/api.js";
+import { api, bootstrapSession } from "./lib/api.js";
 import { safeDecryptField } from "./lib/crypto.js";
 import { requireHouseholdKey, clearHouseholdKey } from "./lib/keyStore.js";
 import styles from "./App.module.css";
@@ -391,6 +391,29 @@ function Home() {
 }
 
 function App() {
+  const [checkingSession, setCheckingSession] = useState(
+    () => !sessionStorage.getItem("userEmail"),
+  );
+
+  useEffect(() => {
+    if (!checkingSession) return;
+    let cancelled = false;
+    bootstrapSession().finally(() => {
+      if (!cancelled) setCheckingSession(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [checkingSession]);
+
+  if (checkingSession) {
+    return (
+      <main className={styles.page}>
+        <p className={styles.emptyState}>Loading…</p>
+      </main>
+    );
+  }
+
   return (
     <Routes>
       <Route path="/" element={<Home />} />

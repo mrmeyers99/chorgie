@@ -23,8 +23,13 @@ function getAuthHeader() {
   return accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
 }
 
+function getCsrfCookieValue() {
+  const match = document.cookie.match(/(?:^|;\s*)csrfToken=([^;]*)/)
+  return match ? decodeURIComponent(match[1]) : null
+}
+
 function getCsrfHeader() {
-  const csrfToken = sessionStorage.getItem('csrfToken')
+  const csrfToken = sessionStorage.getItem('csrfToken') ?? getCsrfCookieValue()
   return csrfToken ? { 'x-csrf-token': csrfToken } : {}
 }
 
@@ -172,4 +177,23 @@ export const api = {
       `/kids/${kidId}/history?limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
       { headers: getAuthHeader() },
     ),
+}
+
+// sessionStorage is cleared when the tab/browser closes, but the httpOnly
+// refreshToken cookie (and its readable csrfToken double-submit cookie)
+// survive for 30 days. On a fresh tab, re-derive a session from that cookie
+// before falling back to the login page.
+export async function bootstrapSession() {
+  if (sessionStorage.getItem('accessToken')) return true
+  if (!getCsrfCookieValue()) return false
+
+  try {
+    const data = await api.refresh()
+    sessionStorage.setItem('accessToken', data.accessToken)
+    if (data.csrfToken) sessionStorage.setItem('csrfToken', data.csrfToken)
+    if (data.user?.email) sessionStorage.setItem('userEmail', data.user.email)
+    return true
+  } catch {
+    return false
+  }
 }
