@@ -156,6 +156,11 @@ export const api = {
       method: 'POST',
       headers: { ...getAuthHeader(), ...getAdminModeHeader() },
     }),
+  skipChoreOccurrence: (id) =>
+    request(`/chores/${id}/skip`, {
+      method: 'POST',
+      headers: { ...getAuthHeader(), ...getAdminModeHeader() },
+    }),
   completeChore: (id, payload) =>
     request(`/chores/${id}/complete`, {
       method: 'POST',

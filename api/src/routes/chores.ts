@@ -458,6 +458,73 @@ choresRouter.post(
   },
 );
 
+choresRouter.post("/:id/skip", requireAdminMode, async (req, res) => {
+  const householdId = res.locals.auth?.householdId as string | undefined;
+  if (!householdId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const { id } = req.params;
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const choreResult = await client.query<{
+      id: string;
+      is_active: boolean;
+      recurrence_type: string;
+      recurrence_interval_days: number | null;
+    }>(
+      `SELECT id, is_active, recurrence_type, recurrence_interval_days
+       FROM chore_definitions
+       WHERE id = $1 AND household_id = $2
+       FOR UPDATE`,
+      [id, householdId],
+    );
+
+    const chore = choreResult.rows[0];
+    if (!chore) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Chore definition not found." });
+      return;
+    }
+
+    if (!chore.is_active) {
+      await client.query("ROLLBACK");
+      res.status(400).json({ error: "Cannot skip inactive chores." });
+      return;
+    }
+
+    if (chore.recurrence_type !== "recurring") {
+      await client.query("ROLLBACK");
+      res.status(400).json({
+        error: "Can only skip occurrences for recurring chores.",
+      });
+      return;
+    }
+
+    await client.query(
+      `UPDATE chore_definitions
+       SET next_available_at = CASE
+         WHEN $3::integer IS NOT NULL THEN NOW() + ($3::integer || ' days')::interval
+         ELSE NULL
+       END
+       WHERE id = $1 AND household_id = $2`,
+      [id, householdId, chore.recurrence_interval_days],
+    );
+
+    await client.query("COMMIT");
+    res.status(200).json({ message: "Chore occurrence skipped." });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+});
+
 choresRouter.post("/:id/complete", async (req, res) => {
   const householdId = res.locals.auth?.householdId as string | undefined;
   if (!householdId) {

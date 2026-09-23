@@ -197,6 +197,19 @@ export default function ChoreAdmin() {
     }
   }
 
+  async function handleSkipOccurrence(id) {
+    setStatus("");
+    try {
+      await api.skipChoreOccurrence(id);
+      setStatus(
+        "Chore occurrence skipped. It won't count as done and no reward was given.",
+      );
+      await loadChores();
+    } catch (err) {
+      setStatus(err.message ?? "Failed to skip occurrence.");
+    }
+  }
+
   const sortedChores = [...chores].sort((left, right) => {
     const leftLastCompleted = left.last_completed_at;
     const rightLastCompleted = right.last_completed_at;
@@ -454,6 +467,16 @@ export default function ChoreAdmin() {
                             Make Available Early
                           </button>
                         )}
+                      {chore.recurrence_type === "recurring" && (
+                        <button
+                          type="button"
+                          onClick={() => handleSkipOccurrence(chore.id)}
+                          className={`${styles.btn} ${styles.btnSecondary}`}
+                          title="Mark this occurrence as done without crediting a kid — pushes the next available date forward by the recurrence interval"
+                        >
+                          Skip Occurrence
+                        </button>
+                      )}
                     </>
                   ) : (
                     <button
