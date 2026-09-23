@@ -114,7 +114,7 @@ Not in scope for v1 — admin password change will require re-encryption of all 
     - **Recurring:** reappears after the configured repeat interval (in days).
     - **Always available:** stays active and immediately available again after completion — no cooldown, no manual reactivation needed.
   - Assigned-to: one kid, multiple kids, or "any kid"
-- Recurring chores store their repeat interval as a plaintext day count (`recurrence_interval_days`) — see §6.5 for how it's used to compute availability, and §8 for the override-availability endpoint that lets an admin bypass it.
+- Recurring chores store their repeat interval as a plaintext day count (`recurrence_interval_days`) — see §6.5 for how it's used to compute availability, and §8 for the override-availability endpoint that lets an admin bypass it, and the skip endpoint that lets an admin advance it (the inverse: for when the admin did the chore themselves and doesn't want it sitting due/overdue for a kid to tap and get paid for).
 
 ### 6.5 Chore Completion
 
@@ -190,6 +190,7 @@ DELETE /chores/:id             – soft-delete (admin)
 
 POST   /chores/:id/complete                – mark done (kid); 409 if the chore is not currently available
 POST   /chores/:id/override-availability   – reopen a recurring chore early, bypassing next_available_at (admin)
+POST   /chores/:id/skip                    – skip the current occurrence without a kid completing it; advances next_available_at by the recurrence interval, no reward paid (admin)
 DELETE /chores/:id/complete                – undo completion (kid); rejected once the completion has been paid
 
 GET    /kids/:id/balance       – current balance for a kid

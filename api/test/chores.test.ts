@@ -631,3 +631,165 @@ describe("POST /chores/:id/override-availability", () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe("POST /chores/:id/skip", () => {
+  beforeEach(async () => {
+    const mockClient = await getMockClient();
+    mockClient.query.mockReset();
+    mockClient.release.mockReset();
+  });
+
+  it("requires admin mode token", async () => {
+    const res = await request(app)
+      .post("/chores/chore-1/skip")
+      .set("Authorization", `Bearer ${makeAccessToken()}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("skips the occurrence by advancing next_available_at by the interval", async () => {
+    const mockClient = await getMockClient();
+
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "chore-1",
+            household_id: "household-uuid",
+            recurrence_type: "recurring",
+            recurrence_interval_days: 7,
+            is_active: true,
+          },
+        ],
+      }) // chore lookup
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE next_available_at
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
+
+    const res = await request(app)
+      .post("/chores/chore-1/skip")
+      .set("Authorization", `Bearer ${makeAccessToken()}`)
+      .set("x-admin-mode-token", makeAdminModeToken());
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe("Chore occurrence skipped.");
+    expect(mockClient.query.mock.calls[2]?.[0]).toContain(
+      "UPDATE chore_definitions",
+    );
+    expect(mockClient.query.mock.calls[2]?.[0]).toContain(
+      "NOW() + ($3::integer || ' days')::interval",
+    );
+    expect(mockClient.query.mock.calls[2]?.[1]).toEqual([
+      "chore-1",
+      "household-uuid",
+      7,
+    ]);
+  });
+
+  it("sets next_available_at to NULL when recurrence_interval_days is null", async () => {
+    const mockClient = await getMockClient();
+
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "chore-1",
+            household_id: "household-uuid",
+            recurrence_type: "recurring",
+            recurrence_interval_days: null,
+            is_active: true,
+          },
+        ],
+      }) // chore lookup
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE next_available_at
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
+
+    const res = await request(app)
+      .post("/chores/chore-1/skip")
+      .set("Authorization", `Bearer ${makeAccessToken()}`)
+      .set("x-admin-mode-token", makeAdminModeToken());
+
+    expect(res.status).toBe(200);
+    expect(mockClient.query.mock.calls[2]?.[1]).toEqual([
+      "chore-1",
+      "household-uuid",
+      null,
+    ]);
+  });
+
+  it("rejects skip for inactive chores", async () => {
+    const mockClient = await getMockClient();
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "chore-1",
+            household_id: "household-uuid",
+            recurrence_type: "recurring",
+            recurrence_interval_days: 3,
+            is_active: false,
+          },
+        ],
+      }) // chore lookup
+      .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
+
+    const res = await request(app)
+      .post("/chores/chore-1/skip")
+      .set("Authorization", `Bearer ${makeAccessToken()}`)
+      .set("x-admin-mode-token", makeAdminModeToken());
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Cannot skip inactive chores.");
+  });
+
+  it("rejects skip for non-recurring chores", async () => {
+    const mockClient = await getMockClient();
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "chore-1",
+            household_id: "household-uuid",
+            recurrence_type: "ad-hoc",
+            recurrence_interval_days: null,
+            is_active: true,
+          },
+        ],
+      }) // chore lookup
+      .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
+
+    const res = await request(app)
+      .post("/chores/chore-1/skip")
+      .set("Authorization", `Bearer ${makeAccessToken()}`)
+      .set("x-admin-mode-token", makeAdminModeToken());
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe(
+      "Can only skip occurrences for recurring chores.",
+    );
+  });
+
+  it("returns 404 when the chore does not exist", async () => {
+    const mockClient = await getMockClient();
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [] }) // chore lookup
+      .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
+
+    const res = await request(app)
+      .post("/chores/chore-1/skip")
+      .set("Authorization", `Bearer ${makeAccessToken()}`)
+      .set("x-admin-mode-token", makeAdminModeToken());
+
+    expect(res.status).toBe(404);
+  });
+
+  it("requires authentication", async () => {
+    const res = await request(app).post("/chores/chore-1/skip");
+
+    expect(res.status).toBe(401);
+  });
+});
