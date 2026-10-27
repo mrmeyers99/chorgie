@@ -113,3 +113,4 @@ Notes:
 - The web app is configured to talk to the local API at `http://localhost:3000`.
 - Stop the stack with `docker compose down`.
 - Reset the local database with `docker compose down -v`.
+
