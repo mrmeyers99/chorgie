@@ -32,6 +32,7 @@ erDiagram
         text email UK
         text password_hash
         text admin_pin_hash
+        boolean is_super_admin
         timestamptz created_at
     }
 

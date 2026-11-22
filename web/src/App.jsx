@@ -4,6 +4,7 @@ import Landing from "./pages/Landing.jsx";
 import Register from "./pages/Register.jsx";
 import Login from "./pages/Login.jsx";
 import ChoreAdmin from "./pages/ChoreAdmin.jsx";
+import SuperAdmin from "./pages/SuperAdmin.jsx";
 import PaymentHistory from "./pages/PaymentHistory.jsx";
 import AdminFamily from "./pages/AdminFamily.jsx";
 import ChoreRequests from "./pages/ChoreRequests.jsx";
@@ -190,6 +191,7 @@ function Home() {
     sessionStorage.removeItem("csrfToken");
     sessionStorage.removeItem("adminModeToken");
     sessionStorage.removeItem("userEmail");
+    sessionStorage.removeItem("isSuperAdmin");
     await clearHouseholdKey();
     navigate("/login", { replace: true });
   }
@@ -582,6 +584,7 @@ function App() {
       <Route path="/chores" element={<ChoreAdmin />} />
       <Route path="/requests" element={<ChoreRequests />} />
       <Route path="/history" element={<PaymentHistory />} />
+      <Route path="/super-admin" element={<SuperAdmin />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

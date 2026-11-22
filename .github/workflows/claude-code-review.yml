@@ -30,7 +30,7 @@ jobs:
           # Uses a Claude Pro/Max subscription token from `claude setup-token`, not an API key.
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # The action rejects bot-triggered runs by default; allow Renovate's dependency PRs.
-          allowed_bots: 'renovate'
+          allowed_bots: "renovate"
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}

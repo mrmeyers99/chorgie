@@ -251,6 +251,7 @@ describe("POST /auth/refresh", () => {
     expect(res.body.user).toEqual({
       id: "user-uuid",
       email: "parent@example.com",
+      is_super_admin: false,
     });
     expect(res.headers["set-cookie"]).toBeDefined();
     expect(mockClient.query).toHaveBeenCalledWith(expect.any(String), [

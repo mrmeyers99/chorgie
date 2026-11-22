@@ -61,6 +61,8 @@ export default function AdminLayout({ children }) {
 
   const isFamily = location.pathname === "/admin";
   const isChores = location.pathname === "/chores";
+  const isSuperAdminPage = location.pathname === "/super-admin";
+  const isSuperAdmin = sessionStorage.getItem("isSuperAdmin") === "true";
   const isRequests = location.pathname === "/requests";
 
   if (!adminModeToken) {
@@ -148,6 +150,17 @@ export default function AdminLayout({ children }) {
               ) : null}
             </Link>
           </li>
+          {isSuperAdmin ? (
+            <li>
+              <Link
+                to="/super-admin"
+                className={`${styles.navLink}${isSuperAdminPage ? ` ${styles.navLinkActive}` : ""}`}
+                aria-current={isSuperAdminPage ? "page" : undefined}
+              >
+                Households
+              </Link>
+            </li>
+          ) : null}
         </ul>
 
         <div className={styles.navBottom}>

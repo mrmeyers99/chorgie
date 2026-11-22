@@ -86,6 +86,7 @@ export async function requireHouseholdKey() {
   sessionStorage.removeItem('csrfToken')
   sessionStorage.removeItem('adminModeToken')
   sessionStorage.removeItem('userEmail')
+  sessionStorage.removeItem('isSuperAdmin')
   window.location.replace('/login')
   return null
 }
