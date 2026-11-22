@@ -151,3 +151,7 @@ web/scripts/verify-history-link/screenshots/
 # verify-e2e-encryption script output
 web/scripts/verify-e2e-encryption/screenshots/
 web/scripts/verify-chore-requests/screenshots/
+
+# Workspaces use the root package-lock.json only
+api/package-lock.json
+web/package-lock.json
