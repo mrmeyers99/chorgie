@@ -206,14 +206,16 @@ kidsRouter.get("/:id/history", async (req, res) => {
     }
 
     // payouts aren't tied to specific completions (PRD §6.7), so this has to be a
-    // UNION ALL of two independent logs, not a join
+    // UNION ALL of independent logs, not a join. Approved kid-submitted chore
+    // requests ("extra" entries, PRD §6.9) are credited at approval time, so they
+    // sort by resolved_at rather than when the kid submitted them
     //
     // occurred_at_raw carries full microsecond precision as text so the cursor never
     // round-trips through a JS Date (millisecond precision), which would let two rows
     // landing in the same millisecond permanently vanish from the ledger
     const result = await client.query<{
       id: string;
-      type: "completion" | "payout";
+      type: "completion" | "extra" | "payout";
       occurred_at: string;
       occurred_at_raw: string;
       amount: string;
@@ -230,6 +232,14 @@ kidsRouter.get("/:id/history", async (req, res) => {
          JOIN chore_definitions cd ON cc.chore_id = cd.id AND cc.household_id = cd.household_id
          WHERE cc.kid_id = $1 AND cc.household_id = $2
            AND ($3::timestamptz IS NULL OR (cc.completed_at, cc.id) < ($3::timestamptz, $4::uuid))
+         UNION ALL
+         SELECT cr.id, 'extra' AS type, cr.resolved_at AS occurred_at,
+                to_char(cr.resolved_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS occurred_at_raw,
+                cr.approved_amount AS amount, NULL AS chore_id,
+                cr.enc_name AS chore_name, NULL AS enc_notes
+         FROM chore_requests cr
+         WHERE cr.kid_id = $1 AND cr.household_id = $2 AND cr.status = 'approved'
+           AND ($3::timestamptz IS NULL OR (cr.resolved_at, cr.id) < ($3::timestamptz, $4::uuid))
          UNION ALL
          SELECT p.id, 'payout' AS type, p.paid_at AS occurred_at,
                 to_char(p.paid_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS occurred_at_raw,

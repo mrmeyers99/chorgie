@@ -373,6 +373,40 @@ describe("GET /kids/:id/history", () => {
     expect(res.body.next_cursor).toBeNull();
   });
 
+  it("includes approved kid-submitted chore requests as 'extra' entries", async () => {
+    const mockClient = await getMockClient();
+    mockClient.query.mockResolvedValueOnce({ rows: [{ id: kidId }] });
+    mockClient.query.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "request-1",
+          type: "extra",
+          occurred_at: "2026-05-27T00:00:00.000Z",
+          occurred_at_raw: "2026-05-27T00:00:00.000000Z",
+          amount: "3.00",
+          chore_id: null,
+          chore_name: "enc-raked-leaves",
+          enc_notes: null,
+        },
+      ],
+    });
+
+    const res = await request(app)
+      .get(`/kids/${kidId}/history`)
+      .set("Authorization", `Bearer ${makeAccessToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.entries[0]).toMatchObject({
+      id: "request-1",
+      type: "extra",
+      amount: "3.00",
+      chore_name: "enc-raked-leaves",
+    });
+    const sql = mockClient.query.mock.calls[1][0] as string;
+    expect(sql).toContain("FROM chore_requests cr");
+    expect(sql).toContain("cr.status = 'approved'");
+  });
+
   it("uses default limit and no cursor filter on the first page", async () => {
     const mockClient = await getMockClient();
     mockClient.query.mockResolvedValueOnce({ rows: [{ id: kidId }] });

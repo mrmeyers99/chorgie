@@ -67,10 +67,12 @@ All **household-specific user-generated content** (chore names, descriptions, ki
 - Household ID, timezone, currency code
 - Admin user ID, email address (for auth), password hash
 - Chore IDs, reward amounts, recurrence type, recurrence interval (day count), due-date timestamps (derived by the client), completion timestamps
+- Kid-submitted chore request IDs, requested/approved amounts, status (pending/approved/rejected), and submitted/resolved timestamps
 - Archived payout IDs and timestamps
 
 ### What is stored encrypted
 - Chore name, description
+- Name of a kid-submitted chore request (what the kid says they did)
 - Kid display name (the label shown on their avatar)
 - Any free-text notes on a payout cycle
 
@@ -131,7 +133,7 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 
 ### 6.6 Balance Tracking
 
-- Each kid has a running **balance**: a ledger value incremented by the reward amount whenever a chore is completed, and decremented by the amount of each payout made to that kid.
+- Each kid has a running **balance**: a ledger value incremented by the reward amount whenever a chore is completed (or by the approved amount when an admin approves a kid-submitted chore request — see §6.9), and decremented by the amount of each payout made to that kid.
 - Balances are displayed on the kid dashboard and the admin overview.
 - Household admin configures the **currency symbol / code** (default: USD / $).
 
@@ -141,13 +143,25 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 - Each payout is **per kid** — kids can be paid on completely independent schedules, and payments can be **partial**: the admin enters any amount greater than $0 and no more than the kid's current balance.
 - The entered amount is recorded as a new payout ledger entry and subtracted from the kid's balance. Payouts are not tied to any specific completed chore — completed chores remain a separate historical log, independent of what's been paid.
 - The admin can optionally add a **note** to the payout (e.g., "cash", "bank transfer", or "cash for chores + $5 bonus") before confirming.
-- Payment history is retained and viewable per kid as a single paginated ledger that interleaves payouts with completed chores in reverse-chronological order, with a "Load more" control to page further back.
+- Payment history is retained and viewable per kid as a single paginated ledger that interleaves payouts with completed chores and approved kid-submitted chores (tagged "Extra", dated by when the admin approved them) in reverse-chronological order, with a "Load more" control to page further back.
 
 ### 6.8 Timezone & Locale
 
 - During onboarding the admin selects the **household timezone** from an IANA timezone list.
 - All due-date computations on the client use this timezone (start-of-day semantics: a chore due "Monday" is due at 00:00:00 household time on Monday).
 - Currency and timezone can be changed later in household settings.
+
+### 6.9 Kid-Submitted Chores (Chore Requests)
+
+- From the kid dashboard, with their avatar selected, a kid taps **"+ I did something else"** to log a chore that isn't on their list. They enter:
+  - What they did (required, encrypted like other chore names)
+  - How much they think it's worth (optional; leaving it blank means "a grown-up decides")
+- The request is created as **pending** and does **not** affect the kid's balance. Pending requests are listed on the kid's dashboard under **"Waiting for Approval"** until an admin resolves them.
+- In Admin Mode, a **Requests** page (side nav, with a badge showing the number of pending requests) lists every pending request with the kid's name, when it was submitted, and the amount they asked for.
+  - **Approve:** the admin can accept the requested amount or change it to any amount ≥ $0 (an amount is required when the kid didn't request one). The approved amount is credited to the kid's balance immediately and the entry appears in their payment history.
+  - **Decline:** the request is marked rejected; no balance change and nothing is added to history.
+- A request can only be resolved once — approving or declining an already-resolved request returns `409 Conflict`. Approval is blocked if the kid profile has since been deactivated.
+- Submitting a request does not create a chore definition; if the admin wants it on the regular list going forward they add it on the Chores page as usual.
 
 ---
 
@@ -194,7 +208,12 @@ POST   /chores/:id/skip                    – skip the current occurrence witho
 DELETE /chores/:id/complete                – undo completion (kid); rejected once the completion has been paid
 
 GET    /kids/:id/balance       – current balance for a kid
-GET    /kids/:id/history       – unified, cursor-paginated ledger (chore completions + payouts) for a kid, ?limit=&cursor=
+GET    /kids/:id/history       – unified, cursor-paginated ledger (chore completions + approved chore requests + payouts) for a kid, ?limit=&cursor=
+
+POST   /chore-requests                – kid logs an off-list chore with an optional requested_amount; created pending, no balance change (kid)
+GET    /chore-requests                – list requests, ?status=pending|approved|rejected (default pending)&kid_id=
+POST   /chore-requests/:id/approve    – approve with optional amount override (defaults to requested_amount; required if none); credits balance; 409 if already resolved (admin)
+POST   /chore-requests/:id/reject     – decline; no balance change; 409 if already resolved (admin)
 
 POST   /payouts                – record a payment of a given amount (≤ current balance) for a kid; decrements balance (admin)
 GET    /payouts/:id            – get a single payout
@@ -214,12 +233,14 @@ GET    /payouts/:id            – get a single payout
 1. Home screen shows kid avatars.
 2. Kid taps their avatar → sees their chore list and balance.
 3. Kid taps "Done!" on a chore → balance updates, chore moves to done.
+4. Kid did something not on the list → taps "+ I did something else", describes it, optionally suggests an amount → it shows as "Waiting for Approval" until an admin resolves it.
 
 ### Admin flow
 1. Admin taps "Enter Admin Mode" → enters PIN → 10-min session begins.
 2. Admin manages chores, kids, views balances.
-3. Admin taps "Mark Paid" on a kid → enters a payment amount (up to their current balance) → confirms → balance decrements by that amount.
-4. Admin taps "Exit Admin Mode" or session expires.
+3. Admin opens **Requests** (badge shows pending count) → approves each kid-submitted chore (optionally adjusting the amount) or declines it.
+4. Admin taps "Mark Paid" on a kid → enters a payment amount (up to their current balance) → confirms → balance decrements by that amount.
+5. Admin taps "Exit Admin Mode" or session expires.
 
 ---
 
