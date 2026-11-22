@@ -88,7 +88,7 @@ authRouter.post("/register", async (req, res) => {
     res.status(201).json({
       accessToken,
       csrfToken,
-      user: { id: userId, email: email.toLowerCase() },
+      user: { id: userId, email: email.toLowerCase(), is_super_admin: false },
       household: { id: householdId, timezone, currency_code },
     });
   } catch (err) {
@@ -125,8 +125,9 @@ authRouter.post("/login", async (req, res) => {
       email: string;
       password_hash: string;
       household_id: string;
+      is_super_admin: boolean;
     }>(
-      `SELECT id, email, password_hash, household_id
+      `SELECT id, email, password_hash, household_id, is_super_admin
        FROM users
        WHERE email = $1
        LIMIT 1`,
@@ -157,7 +158,11 @@ authRouter.post("/login", async (req, res) => {
     res.status(200).json({
       accessToken,
       csrfToken,
-      user: { id: user.id, email: user.email },
+      user: {
+        id: user.id,
+        email: user.email,
+        is_super_admin: user.is_super_admin === true,
+      },
     });
   } finally {
     client.release();
@@ -187,8 +192,9 @@ authRouter.post("/refresh", requireCsrf, async (req, res) => {
       id: string;
       email: string;
       household_id: string;
+      is_super_admin: boolean;
     }>(
-      `SELECT id, email, household_id
+      `SELECT id, email, household_id, is_super_admin
        FROM users
        WHERE id = $1 AND household_id = $2
        LIMIT 1`,
@@ -212,7 +218,11 @@ authRouter.post("/refresh", requireCsrf, async (req, res) => {
     res.status(200).json({
       accessToken,
       csrfToken,
-      user: { id: user.id, email: user.email },
+      user: {
+        id: user.id,
+        email: user.email,
+        is_super_admin: user.is_super_admin === true,
+      },
     });
   } finally {
     client.release();

@@ -7,6 +7,7 @@ function handleExpiredSession() {
   sessionStorage.removeItem('csrfToken')
   sessionStorage.removeItem('adminModeToken')
   sessionStorage.removeItem('userEmail')
+  sessionStorage.removeItem('isSuperAdmin')
   clearHouseholdKey()
   window.location.replace('/login')
 }
@@ -177,6 +178,10 @@ export const api = {
     request(`/payouts/${id}`, {
       headers: { ...getAuthHeader(), ...getAdminModeHeader() },
     }),
+  getSuperAdminHouseholds: () =>
+    request('/super-admin/households', {
+      headers: { ...getAuthHeader(), ...getAdminModeHeader() },
+    }),
   getKidHistory: (kidId, { limit = 20, cursor } = {}) =>
     request(
       `/kids/${kidId}/history?limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
@@ -197,6 +202,11 @@ export async function bootstrapSession() {
     sessionStorage.setItem('accessToken', data.accessToken)
     if (data.csrfToken) sessionStorage.setItem('csrfToken', data.csrfToken)
     if (data.user?.email) sessionStorage.setItem('userEmail', data.user.email)
+    if (data.user?.is_super_admin) {
+      sessionStorage.setItem('isSuperAdmin', 'true')
+    } else {
+      sessionStorage.removeItem('isSuperAdmin')
+    }
     return true
   } catch {
     return false

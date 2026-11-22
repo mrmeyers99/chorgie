@@ -35,6 +35,7 @@ The product is intentionally simple in scope for the MVP: no push notifications,
 | Role | Description |
 |------|-------------|
 | **Household Admin (Parent)** | The sole authenticated user for a household. Registers the household with an email + password, manages chore definitions, kids' profiles, and payouts. Accesses admin features via PIN-protected admin mode. |
+| **Super Admin (Operator)** | An ordinary Household Admin whose user row has `is_super_admin = true`. In addition to managing their own household, can view a read-only list of every household in the app (see §6.9). The flag can only be set directly in the database — there is no API or UI to grant it. |
 | **Kid** | Has no user account or password. Represented only as a kid profile. Taps their avatar on the household screen, views assigned/available chores, marks them done, and sees their balance. |
 
 > **Design note:** One admin per household (MVP). Kids are profiles, not users — no login, no password, no session of their own. Households and users are kept as separate tables for future-proofing (e.g. multi-admin support post-MVP).
@@ -149,6 +150,14 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 - All due-date computations on the client use this timezone (start-of-day semantics: a chore due "Monday" is due at 00:00:00 household time on Monday).
 - Currency and timezone can be changed later in household settings.
 
+### 6.9 Super Admin Household Overview
+
+- A super admin sees an extra **"Households"** item in the admin-mode side nav, linking to `/super-admin`. It is hidden for everyone else, and the page redirects non-super-admins to `/admin`.
+- The page lists **every household** in the app, newest first, with: household ID, created date/time, time zone, and total number of chore completions (all time). A header summarises the household count and total completions.
+- Access requires a valid access token **and** an admin-mode (PIN) token **and** `users.is_super_admin = true`; the flag is re-checked on every request so revoking it takes effect immediately.
+- Read-only, and limited to plaintext metadata — no encrypted household content (kid names, chore names, notes) is exposed, and the server couldn't decrypt it anyway.
+- `POST /auth/login`, `/auth/register` and `/auth/refresh` return `user.is_super_admin` so the client knows whether to show the nav item.
+
 ---
 
 ## 7. Non-Functional Requirements
@@ -198,6 +207,8 @@ GET    /kids/:id/history       – unified, cursor-paginated ledger (chore compl
 
 POST   /payouts                – record a payment of a given amount (≤ current balance) for a kid; decrements balance (admin)
 GET    /payouts/:id            – get a single payout
+
+GET    /super-admin/households – list all households (id, created_at, timezone, completion_count) (admin mode + super admin)
 ```
 
 ---

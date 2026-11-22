@@ -90,6 +90,11 @@ export default function Register() {
         sessionStorage.setItem("csrfToken", data.csrfToken);
       }
       sessionStorage.setItem("userEmail", data.user.email);
+      if (data.user.is_super_admin) {
+        sessionStorage.setItem("isSuperAdmin", "true");
+      } else {
+        sessionStorage.removeItem("isSuperAdmin");
+      }
 
       navigate("/");
     } catch (err) {
