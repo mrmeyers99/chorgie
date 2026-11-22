@@ -9,6 +9,7 @@ import { adminRouter } from "./routes/admin.js";
 import { kidsRouter } from "./routes/kids.js";
 import { choresRouter } from "./routes/chores.js";
 import { payoutsRouter } from "./routes/payouts.js";
+import { choreRequestsRouter } from "./routes/choreRequests.js";
 
 export const app = express();
 
@@ -88,3 +89,4 @@ app.use("/household", requireAuth, householdRouter);
 app.use("/kids", requireAuth, kidsRouter);
 app.use("/chores", requireAuth, choresRouter);
 app.use("/payouts", requireAuth, payoutsRouter);
+app.use("/chore-requests", requireAuth, choreRequestsRouter);
