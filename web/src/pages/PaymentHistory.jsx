@@ -19,7 +19,7 @@ async function decryptHistoryEntries(hek, rawEntries) {
     rawEntries.map(async (entry) => ({
       ...entry,
       chore_name:
-        entry.type === "completion"
+        entry.type === "completion" || entry.type === "extra"
           ? await safeDecryptField(hek, entry.chore_name)
           : entry.chore_name,
       enc_notes:
@@ -247,16 +247,19 @@ function PaymentHistory() {
                   >
                     <div className={styles.completionInfo}>
                       <span className={styles.choreName}>
-                        {entry.type === "completion"
-                          ? entry.chore_name
-                          : entry.enc_notes || "Payment"}
+                        {entry.type === "payout"
+                          ? entry.enc_notes || "Payment"
+                          : entry.chore_name}
+                        {entry.type === "extra" ? (
+                          <span className={styles.extraBadge}>Extra</span>
+                        ) : null}
                       </span>
                       <span className={styles.completionDate}>
                         {formatDate(entry.occurred_at)}
                       </span>
                     </div>
                     <span className={styles.amount}>
-                      {entry.type === "completion" ? "+" : "−"}$
+                      {entry.type === "payout" ? "−" : "+"}$
                       {Number(entry.amount).toFixed(2)}
                     </span>
                   </li>

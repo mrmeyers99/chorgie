@@ -11,8 +11,10 @@ erDiagram
     HOUSEHOLDS ||--o{ CHORE_DEFINITIONS : has
     HOUSEHOLDS ||--o{ CHORE_COMPLETIONS : has
     HOUSEHOLDS ||--o{ PAYOUTS : has
+    HOUSEHOLDS ||--o{ CHORE_REQUESTS : has
     KID_PROFILES ||--o{ CHORE_COMPLETIONS : completes
     KID_PROFILES ||--o{ PAYOUTS : receives
+    KID_PROFILES ||--o{ CHORE_REQUESTS : submits
     CHORE_DEFINITIONS ||--o{ CHORE_COMPLETIONS : logs
     CHORE_DEFINITIONS }o--o{ KID_PROFILES : "eligible via CHORE_ELIGIBLE_KIDS"
 
@@ -71,6 +73,18 @@ erDiagram
         uuid kid_id FK
         numeric reward_amount
         timestamptz completed_at
+    }
+
+    CHORE_REQUESTS {
+        uuid id PK
+        uuid household_id FK
+        uuid kid_id FK
+        text enc_name
+        numeric requested_amount "nullable"
+        text status "pending | approved | rejected"
+        numeric approved_amount "nullable"
+        timestamptz created_at
+        timestamptz resolved_at
     }
 
     PAYOUTS {

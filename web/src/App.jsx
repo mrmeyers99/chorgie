@@ -7,9 +7,11 @@ import ChoreAdmin from "./pages/ChoreAdmin.jsx";
 import SuperAdmin from "./pages/SuperAdmin.jsx";
 import PaymentHistory from "./pages/PaymentHistory.jsx";
 import AdminFamily from "./pages/AdminFamily.jsx";
+import ChoreRequests from "./pages/ChoreRequests.jsx";
 import { api, bootstrapSession } from "./lib/api.js";
-import { safeDecryptField } from "./lib/crypto.js";
+import { encryptField, safeDecryptField } from "./lib/crypto.js";
 import { requireHouseholdKey, clearHouseholdKey } from "./lib/keyStore.js";
+import Modal from "./components/Modal.jsx";
 import styles from "./App.module.css";
 
 function getDaysOverdue(chore) {
@@ -31,10 +33,16 @@ function Home() {
   const [selectedKidId, setSelectedKidId] = useState("");
   const [completingChoreId, setCompletingChoreId] = useState("");
   const [expandedChoreIds, setExpandedChoreIds] = useState(() => new Set());
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [showRequestDialog, setShowRequestDialog] = useState(false);
+  const [requestName, setRequestName] = useState("");
+  const [requestAmount, setRequestAmount] = useState("");
+  const [submittingRequest, setSubmittingRequest] = useState(false);
   useEffect(() => {
     if (!userEmail) return;
     void loadKids();
     void loadChores();
+    void loadPendingRequests();
   }, [userEmail]);
 
   if (!userEmail) {
@@ -79,6 +87,64 @@ function Home() {
       setStatus(err.message ?? "Failed to load chores.");
     } finally {
       setLoadingChores(false);
+    }
+  }
+
+  async function loadPendingRequests() {
+    try {
+      const hek = await requireHouseholdKey();
+      if (!hek) return;
+      const data = await api.getChoreRequests({ status: "pending" });
+      const decrypted = await Promise.all(
+        (data.requests ?? []).map(async (req) => ({
+          ...req,
+          enc_name: await safeDecryptField(hek, req.enc_name),
+        })),
+      );
+      setPendingRequests(decrypted);
+    } catch {
+      // non-critical: the chore list still works without it
+    }
+  }
+
+  function openRequestDialog() {
+    setRequestName("");
+    setRequestAmount("");
+    setShowRequestDialog(true);
+  }
+
+  function closeRequestDialog() {
+    if (submittingRequest) return;
+    setShowRequestDialog(false);
+  }
+
+  async function handleSubmitRequest(e) {
+    e.preventDefault();
+    if (!selectedKid) return;
+    const name = requestName.trim();
+    if (!name) return;
+    setStatus("");
+    setSubmittingRequest(true);
+    try {
+      const hek = await requireHouseholdKey();
+      if (!hek) return;
+      const payload = {
+        kid_id: selectedKid.id,
+        enc_name: await encryptField(hek, name),
+      };
+      if (requestAmount !== "") {
+        payload.requested_amount = Number(requestAmount);
+      }
+      await api.createChoreRequest(payload);
+      setShowRequestDialog(false);
+      await loadPendingRequests();
+      setStatus(
+        `Sent "${name}" to a grown-up for approval. Nice work, ${selectedKid.enc_display_name}!`,
+      );
+    } catch (err) {
+      setStatus(err.message ?? "Failed to send chore for approval.");
+    } finally {
+      setSubmittingRequest(false);
     }
   }
 
@@ -148,6 +214,10 @@ function Home() {
           eligibleKids.length === 0 || eligibleKids.includes(selectedKid.id)
         );
       })
+    : [];
+
+  const selectedKidPendingRequests = selectedKid
+    ? pendingRequests.filter((req) => req.kid_id === selectedKid.id)
     : [];
 
   // Upcoming chores: recurring chores that are not yet available but will be soon
@@ -258,12 +328,21 @@ function Home() {
                 Balance: ${Number(selectedKid.balance ?? 0).toFixed(2)}
               </p>
             </div>
-            <Link
-              to={`/history?kid=${selectedKid.id}`}
-              className={`${styles.btn} ${styles.btnSecondary}`}
-            >
-              View History
-            </Link>
+            <div className={styles.choresCardActions}>
+              <button
+                type="button"
+                onClick={openRequestDialog}
+                className={`${styles.btn} ${styles.btnSecondary}`}
+              >
+                + I did something else
+              </button>
+              <Link
+                to={`/history?kid=${selectedKid.id}`}
+                className={`${styles.btn} ${styles.btnSecondary}`}
+              >
+                View History
+              </Link>
+            </div>
           </div>
           {loadingChores ? (
             <p className={styles.emptyState}>Loading chores…</p>
@@ -386,8 +465,88 @@ function Home() {
               )}
             </>
           )}
+          {selectedKidPendingRequests.length > 0 && (
+            <>
+              <p className={styles.sectionTitle} style={{ marginTop: "24px" }}>
+                Waiting for Approval
+              </p>
+              <ul className={styles.choreList}>
+                {selectedKidPendingRequests.map((req) => (
+                  <li
+                    key={req.id}
+                    className={`${styles.choreItem} ${styles.choreItemDisabled}`}
+                  >
+                    <div className={styles.choreRow}>
+                      <span className={styles.choreName}>{req.enc_name}</span>
+                      <span className={styles.choreMeta}>
+                        {req.requested_amount !== null
+                          ? `$${Number(req.requested_amount).toFixed(2)}`
+                          : "Grown-up decides"}
+                      </span>
+                      <span className={styles.pendingBadge}>Pending</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
       ) : null}
+
+      {showRequestDialog && selectedKid && (
+        <Modal onClose={closeRequestDialog}>
+          <form onSubmit={handleSubmitRequest}>
+            <h2>I did something else!</h2>
+            <p>
+              Tell a grown-up what you did. They&apos;ll approve it before it
+              counts toward {selectedKid.enc_display_name}&apos;s balance.
+            </p>
+            <div className={styles.formRow}>
+              <label htmlFor="requestName">What did you do?</label>
+              <input
+                id="requestName"
+                value={requestName}
+                onChange={(e) => setRequestName(e.target.value)}
+                placeholder="e.g., Raked the leaves"
+                maxLength={200}
+                required
+              />
+            </div>
+            <div className={styles.formRow}>
+              <label htmlFor="requestAmount">
+                How much do you think it&apos;s worth? (optional)
+              </label>
+              <input
+                id="requestAmount"
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                value={requestAmount}
+                onChange={(e) => setRequestAmount(e.target.value)}
+                placeholder="Leave blank to let a grown-up decide"
+              />
+            </div>
+            <div className={styles.formActions}>
+              <button
+                type="submit"
+                disabled={submittingRequest || !requestName.trim()}
+                className={`${styles.btn} ${styles.btnPrimary}`}
+              >
+                {submittingRequest ? "Sending…" : "Send for approval"}
+              </button>
+              <button
+                type="button"
+                onClick={closeRequestDialog}
+                disabled={submittingRequest}
+                className={`${styles.btn} ${styles.btnGhost}`}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </main>
   );
 }
@@ -423,6 +582,7 @@ function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/admin" element={<AdminFamily />} />
       <Route path="/chores" element={<ChoreAdmin />} />
+      <Route path="/requests" element={<ChoreRequests />} />
       <Route path="/history" element={<PaymentHistory />} />
       <Route path="/super-admin" element={<SuperAdmin />} />
       <Route path="*" element={<Navigate to="/" replace />} />

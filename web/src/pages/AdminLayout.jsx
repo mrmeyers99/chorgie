@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../lib/api.js";
+import { CHORE_REQUESTS_CHANGED_EVENT } from "../lib/choreRequestEvents.js";
 import styles from "./AdminLayout.module.css";
 
 export default function AdminLayout({ children }) {
@@ -11,6 +12,26 @@ export default function AdminLayout({ children }) {
   );
   const [pin, setPin] = useState("");
   const [pinStatus, setPinStatus] = useState("");
+  const [pendingRequestCount, setPendingRequestCount] = useState(0);
+
+  useEffect(() => {
+    if (!adminModeToken) return;
+    let cancelled = false;
+    function refreshCount() {
+      api
+        .getChoreRequests({ status: "pending" })
+        .then((data) => {
+          if (!cancelled) setPendingRequestCount(data.requests?.length ?? 0);
+        })
+        .catch(() => null);
+    }
+    refreshCount();
+    window.addEventListener(CHORE_REQUESTS_CHANGED_EVENT, refreshCount);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(CHORE_REQUESTS_CHANGED_EVENT, refreshCount);
+    };
+  }, [adminModeToken]);
 
   async function handleEnterAdminMode(e) {
     e.preventDefault();
@@ -42,6 +63,7 @@ export default function AdminLayout({ children }) {
   const isChores = location.pathname === "/chores";
   const isSuperAdminPage = location.pathname === "/super-admin";
   const isSuperAdmin = sessionStorage.getItem("isSuperAdmin") === "true";
+  const isRequests = location.pathname === "/requests";
 
   if (!adminModeToken) {
     return (
@@ -109,6 +131,23 @@ export default function AdminLayout({ children }) {
               aria-current={isChores ? "page" : undefined}
             >
               Chores
+            </Link>
+          </li>
+          <li>
+            <Link
+              to="/requests"
+              className={`${styles.navLink}${isRequests ? ` ${styles.navLinkActive}` : ""}`}
+              aria-current={isRequests ? "page" : undefined}
+            >
+              Requests
+              {pendingRequestCount > 0 ? (
+                <span
+                  className={styles.navCount}
+                  aria-label={`${pendingRequestCount} pending`}
+                >
+                  {pendingRequestCount}
+                </span>
+              ) : null}
             </Link>
           </li>
           {isSuperAdmin ? (

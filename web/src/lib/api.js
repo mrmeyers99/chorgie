@@ -168,6 +168,28 @@ export const api = {
       headers: getAuthHeader(),
       body: JSON.stringify(payload),
     }),
+  createChoreRequest: (payload) =>
+    request('/chore-requests', {
+      method: 'POST',
+      headers: getAuthHeader(),
+      body: JSON.stringify(payload),
+    }),
+  getChoreRequests: ({ status = 'pending', kidId } = {}) =>
+    request(
+      `/chore-requests?status=${status}${kidId ? `&kid_id=${kidId}` : ''}`,
+      { headers: getAuthHeader() },
+    ),
+  approveChoreRequest: (id, payload = {}) =>
+    request(`/chore-requests/${id}/approve`, {
+      method: 'POST',
+      headers: { ...getAuthHeader(), ...getAdminModeHeader() },
+      body: JSON.stringify(payload),
+    }),
+  rejectChoreRequest: (id) =>
+    request(`/chore-requests/${id}/reject`, {
+      method: 'POST',
+      headers: { ...getAuthHeader(), ...getAdminModeHeader() },
+    }),
   createPayout: (payload) =>
     request('/payouts', {
       method: 'POST',
