@@ -18,7 +18,14 @@ function setMeta(name, content) {
   tag.setAttribute("content", content);
 }
 
-const SITE_URL = import.meta.env.VITE_SITE_URL || window.location.origin;
+// vite.config.js always defines VITE_SITE_URL (defaulting to production).
+const SITE_URL = import.meta.env.VITE_SITE_URL;
+
+// Captured once at load: the static description shipped in index.html.
+const DEFAULT_DESCRIPTION =
+  document.head
+    .querySelector('meta[name="description"]')
+    ?.getAttribute("content") ?? null;
 
 function setCanonical(pathname) {
   let link = document.head.querySelector('link[rel="canonical"]');
@@ -38,7 +45,9 @@ export default function PageMeta({ title, description, noindex = false }) {
       : title.startsWith("Chorgie")
         ? title
         : `${title} · Chorgie`;
-    if (description) setMeta("description", description);
+    // Pages without their own description fall back to the index.html default
+    // so a previous page's description doesn't linger after client navigation.
+    setMeta("description", description ?? DEFAULT_DESCRIPTION);
     setMeta("robots", noindex ? "noindex, nofollow" : null);
     setCanonical(window.location.pathname);
   }, [title, description, noindex]);
