@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../lib/api.js";
+import PinInput from "../components/PinInput.jsx";
 import { CHORE_REQUESTS_CHANGED_EVENT } from "../lib/choreRequestEvents.js";
 import styles from "./AdminLayout.module.css";
 
@@ -79,17 +80,13 @@ export default function AdminLayout({ children }) {
           <h1 className={styles.pinTitle}>Admin Mode</h1>
           <div className={styles.pinRow}>
             <label htmlFor="pin">Enter admin PIN</label>
-            <input
+            <PinInput
               id="pin"
-              type="password"
+              name="admin-mode-pin"
               value={pin}
               onChange={(e) =>
                 setPin(e.target.value.replace(/\D/g, "").slice(0, 8))
               }
-              inputMode="numeric"
-              pattern="[0-9]{4,8}"
-              minLength={4}
-              maxLength={8}
               placeholder="4–8 digit PIN"
               autoFocus
               required

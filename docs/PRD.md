@@ -98,6 +98,7 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 - Admin mode is valid for **10 minutes** from last action; a countdown is shown.
 - The admin can tap **"Exit Admin Mode"** at any time to leave immediately.
 - Admin PIN is stored as a **bcrypt hash** server-side (the PIN itself is not household-encrypted content).
+- PIN inputs (onboarding and the admin-mode gate) are masked text fields, not `type="password"`, so browsers and password managers never offer to save the PIN or "update" the account password with it.
 
 ### 6.3 Kid Profiles
 
