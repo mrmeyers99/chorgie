@@ -3,5 +3,12 @@
   "extends": [
     "config:recommended"
   ],
-  "rangeStrategy": "bump"
+  "rangeStrategy": "bump",
+  "packageRules": [
+    {
+      "description": "Hold TypeScript below 7 until typescript-eslint supports it (its peer range is <6.1.0 and lint crashes on TS 7). Remove once https://github.com/typescript-eslint/typescript-eslint/issues/12518 is resolved.",
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<7"
+    }
+  ]
 }
