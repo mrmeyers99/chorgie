@@ -9,6 +9,12 @@
       "description": "Hold TypeScript below 7 until typescript-eslint supports it (its peer range is <6.1.0 and lint crashes on TS 7). Remove once https://github.com/typescript-eslint/typescript-eslint/issues/12518 is resolved.",
       "matchPackageNames": ["typescript"],
       "allowedVersions": "<7"
+    },
+    {
+      "description": "Hold the Postgres image below 19 until Render offers Postgres 19, so local dev (compose.yml) stays on the same major as production. Remove once Render supports Postgres 19. See https://github.com/mrmeyers99/chorgie/pull/89.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["postgres"],
+      "allowedVersions": "<19"
     }
   ]
 }
