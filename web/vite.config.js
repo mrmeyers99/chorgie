@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 
 // Public origin of the deployed web app, used for canonical/OG URLs in
 // index.html and for robots.txt + sitemap.xml. No trailing slash.
-const DEFAULT_SITE_URL = 'https://choregie.app'
+const DEFAULT_SITE_URL = 'https://chorgie.app'
 
 // Only the public marketing/auth pages belong in search results; everything
 // behind login is disallowed here and also marked noindex at runtime.
