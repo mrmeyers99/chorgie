@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import PageMeta from "../components/PageMeta.jsx";
 import styles from "./Landing.module.css";
 
 const FEATURES = [
@@ -37,6 +38,10 @@ const FEATURES = [
 export default function Landing() {
   return (
     <main className={styles.page}>
+      <PageMeta
+        title="Chorgie · Private chore chart & allowance tracker for families"
+        description="Chorgie is an ad-free, end-to-end encrypted chore chart and allowance tracker. Assign chores, let kids check them off, and track what they've earned."
+      />
       <header className={styles.nav}>
         <span className={styles.brand}>🐾 Chorgie</span>
         <div className={styles.navActions}>
@@ -69,7 +74,10 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className={styles.features}>
+      <section className={styles.features} aria-labelledby="features-heading">
+        <h2 id="features-heading" className={styles.visuallyHidden}>
+          Features
+        </h2>
         {FEATURES.map((feature) => (
           <div key={feature.title} className={styles.featureCard}>
             <span className={styles.featureIcon}>{feature.icon}</span>

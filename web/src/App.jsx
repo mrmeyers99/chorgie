@@ -12,6 +12,7 @@ import { api, bootstrapSession } from "./lib/api.js";
 import { encryptField, safeDecryptField } from "./lib/crypto.js";
 import { requireHouseholdKey, clearHouseholdKey } from "./lib/keyStore.js";
 import Modal from "./components/Modal.jsx";
+import PageMeta from "./components/PageMeta.jsx";
 import styles from "./App.module.css";
 
 function getDaysOverdue(chore) {
@@ -254,6 +255,7 @@ function Home() {
 
   return (
     <main className={styles.page}>
+      <PageMeta title="Home" noindex />
       <header className={styles.appHeader}>
         <h1 className={styles.appTitle}>🐾 Chorgie</h1>
         <div className={styles.topActions}>
@@ -580,11 +582,51 @@ function App() {
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/admin" element={<AdminFamily />} />
-      <Route path="/chores" element={<ChoreAdmin />} />
-      <Route path="/requests" element={<ChoreRequests />} />
-      <Route path="/history" element={<PaymentHistory />} />
-      <Route path="/super-admin" element={<SuperAdmin />} />
+      <Route
+        path="/admin"
+        element={
+          <>
+            <PageMeta title="Family" noindex />
+            <AdminFamily />
+          </>
+        }
+      />
+      <Route
+        path="/chores"
+        element={
+          <>
+            <PageMeta title="Chores" noindex />
+            <ChoreAdmin />
+          </>
+        }
+      />
+      <Route
+        path="/requests"
+        element={
+          <>
+            <PageMeta title="Requests" noindex />
+            <ChoreRequests />
+          </>
+        }
+      />
+      <Route
+        path="/history"
+        element={
+          <>
+            <PageMeta title="History" noindex />
+            <PaymentHistory />
+          </>
+        }
+      />
+      <Route
+        path="/super-admin"
+        element={
+          <>
+            <PageMeta title="Households" noindex />
+            <SuperAdmin />
+          </>
+        }
+      />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

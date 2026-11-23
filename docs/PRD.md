@@ -183,6 +183,7 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 | Performance | No performance requirement during MVP, especially since we'll be using the eco plan |
 | Availability | Render service tier; no SLA target for MVP. |
 | Accessibility | WCAG 2.1 AA target for kid-facing screens. |
+| Discoverability (SEO) | Only the public pages (`/`, `/register`, `/login`) are indexable: each sets its own title, meta description and canonical URL. `index.html` ships static defaults (description, Open Graph/Twitter preview image, `WebApplication` JSON-LD, `<noscript>` summary) for crawlers and link-preview bots that don't run JS. Every logged-in route is `noindex` and disallowed in `robots.txt`. `robots.txt` and `sitemap.xml` are generated at build time from `VITE_SITE_URL` (default `https://chorgie.onrender.com`). |
 | Browser support | Last 2 versions of Chrome, Firefox, Safari, Edge. |
 | Code formatting | Git pre-commit hook (husky + lint-staged) auto-formats staged `.ts` and `.yml`/`.yaml` files with Prettier. Requires Node 24+. |
 
