@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { deriveHouseholdKey } from "../lib/crypto.js";
 import { setHouseholdKey } from "../lib/keyStore.js";
 import { api } from "../lib/api.js";
+import PageMeta from "../components/PageMeta.jsx";
 import styles from "./Register.module.css";
 
 const TIMEZONES =
@@ -106,6 +107,10 @@ export default function Register() {
 
   return (
     <main className={styles.page}>
+      <PageMeta
+        title="Create your household"
+        description="Set up a private Chorgie household for your family in a minute: add your kids, create chores, and start tracking allowance."
+      />
       <div className={styles.card}>
         <h1 className={styles.title}>Create your household</h1>
         <p className={styles.subtitle}>

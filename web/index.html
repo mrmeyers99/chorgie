@@ -2,12 +2,54 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chorgie</title>
+    <title>Chorgie · Private chore chart &amp; allowance tracker for families</title>
+    <meta
+      name="description"
+      content="Chorgie is an ad-free, end-to-end encrypted chore chart and allowance tracker. Assign chores, let kids check them off, and track what they've earned."
+    />
+    <link rel="canonical" href="%VITE_SITE_URL%/" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#c0572a" />
+
+    <!-- Link previews (iMessage, Slack, Facebook, etc.) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Chorgie" />
+    <meta property="og:url" content="%VITE_SITE_URL%/" />
+    <meta property="og:title" content="Chorgie · Chores, sorted. Kids, motivated." />
+    <meta
+      property="og:description"
+      content="A private, ad-free chore chart and allowance tracker for families. End-to-end encrypted."
+    />
+    <meta property="og:image" content="%VITE_SITE_URL%/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Chorgie: chores, sorted. Kids, motivated." />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Chorgie",
+        "url": "%VITE_SITE_URL%/",
+        "applicationCategory": "LifestyleApplication",
+        "operatingSystem": "Any (web browser)",
+        "description": "An ad-free, end-to-end encrypted chore chart and allowance tracker for families."
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <h1>Chorgie: chores, sorted. Kids, motivated.</h1>
+      <p>
+        Chorgie is a simple, private place for families to assign chores, track
+        who did what, and reward kids for getting it done. It's end-to-end
+        encrypted and ad-free. Chorgie needs JavaScript to run.
+      </p>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

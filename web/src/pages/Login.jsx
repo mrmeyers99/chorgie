@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { deriveHouseholdKey } from "../lib/crypto.js";
 import { setHouseholdKey } from "../lib/keyStore.js";
+import PageMeta from "../components/PageMeta.jsx";
 import styles from "./Login.module.css";
 
 export default function Login() {
@@ -57,6 +58,10 @@ export default function Login() {
 
   return (
     <main className={styles.page}>
+      <PageMeta
+        title="Log in"
+        description="Log in to your Chorgie household to manage chores, kids, and allowance."
+      />
       <div className={styles.card}>
         <h1 className={styles.title}>Log in to Chorgie</h1>
         <p className={styles.subtitle}>
