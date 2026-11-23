@@ -8,6 +8,6 @@
     "verify": "node verify.mjs"
   },
   "devDependencies": {
-    "playwright": "^1.61.1"
+    "playwright": "^1.65.1"
   }
 }
