@@ -241,7 +241,7 @@ GET    /super-admin/households – list all households (id, created_at, timezone
 4. Admin creates initial chore definitions.
 
 ### Daily kid flow
-1. Home screen shows kid avatars.
+1. Home screen shows kid avatars. The header greets the logged-in email based on the device's local time ("Good morning" 5:00–11:59, "Good afternoon" 12:00–16:59, "Good evening" otherwise).
 2. Kid taps their avatar → sees their chore list and balance.
 3. Kid taps "Done!" on a chore → balance updates, chore moves to done.
 4. Kid did something not on the list → taps "+ I did something else", describes it, optionally suggests an amount → it shows as "Waiting for Approval" until an admin resolves it.

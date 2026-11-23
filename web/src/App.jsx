@@ -11,6 +11,7 @@ import ChoreRequests from "./pages/ChoreRequests.jsx";
 import { api, bootstrapSession } from "./lib/api.js";
 import { encryptField, safeDecryptField } from "./lib/crypto.js";
 import { requireHouseholdKey, clearHouseholdKey } from "./lib/keyStore.js";
+import { getTimeOfDayGreeting } from "./lib/greeting.js";
 import Modal from "./components/Modal.jsx";
 import styles from "./App.module.css";
 
@@ -257,7 +258,9 @@ function Home() {
       <header className={styles.appHeader}>
         <h1 className={styles.appTitle}>🐾 Chorgie</h1>
         <div className={styles.topActions}>
-          <span className={styles.appSubtitle}>Welcome, {userEmail}</span>
+          <span className={styles.appSubtitle}>
+            {getTimeOfDayGreeting()}, {userEmail}
+          </span>
           <Link to="/admin" className={styles.btnGhost}>
             Admin
           </Link>
