@@ -9,7 +9,7 @@ const DEFAULT_SITE_URL = 'https://chorgie.app'
 // Only the public marketing/auth pages belong in search results; everything
 // behind login is disallowed here and also marked noindex at runtime.
 const PUBLIC_PATHS = ['/', '/register', '/login']
-const PRIVATE_PATHS = ['/admin', '/chores', '/requests', '/history', '/super-admin']
+const PRIVATE_PATHS = ['/admin', '/chores', '/requests', '/history', '/shop', '/super-admin']
 
 function seoFiles(siteUrl) {
   return {

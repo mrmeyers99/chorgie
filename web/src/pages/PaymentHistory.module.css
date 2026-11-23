@@ -107,8 +107,9 @@
 }
 
 .kidAvatar {
-  font-size: 2.5rem;
-  line-height: 1;
+  width: 48px;
+  height: 48px;
+  display: block;
 }
 
 .kidName {
@@ -142,8 +143,10 @@
 }
 
 .kidAvatarLarge {
-  font-size: 3.5rem;
-  line-height: 1;
+  width: 72px;
+  height: 72px;
+  display: block;
+  flex-shrink: 0;
 }
 
 .kidNameLarge {
@@ -157,6 +160,16 @@
   font-size: 14px;
   color: var(--text);
   margin: 0;
+}
+
+.kidBiscuits {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-h);
+  margin: 2px 0 0;
 }
 
 .changeKidBtn {
@@ -231,6 +244,14 @@
   font-weight: 700;
   color: var(--accent);
   font-size: 15px;
+}
+
+.entryBiscuits {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 10px;
+  color: var(--text-h);
 }
 
 .entryCompletion {

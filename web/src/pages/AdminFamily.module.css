@@ -126,10 +126,9 @@
   box-shadow: 0 0 0 3px var(--accent-bg);
 }
 
-.avatarOption img {
+.avatarOption svg {
   width: 100%;
   aspect-ratio: 1;
-  object-fit: contain;
   display: block;
   border-radius: 4px;
 }
@@ -224,8 +223,7 @@
 .kidAvatar {
   width: 72px;
   height: 72px;
-  object-fit: contain;
-  border-radius: 50%;
+  display: block;
 }
 
 .kidName {

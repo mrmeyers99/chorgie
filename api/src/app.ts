@@ -10,6 +10,7 @@ import { kidsRouter } from "./routes/kids.js";
 import { choresRouter } from "./routes/chores.js";
 import { payoutsRouter } from "./routes/payouts.js";
 import { choreRequestsRouter } from "./routes/choreRequests.js";
+import { shopRouter } from "./routes/shop.js";
 import { superAdminRouter } from "./routes/superAdmin.js";
 import { requireAdminMode } from "./middleware/admin.js";
 import { requireSuperAdmin } from "./middleware/superAdmin.js";
@@ -93,6 +94,7 @@ app.use("/kids", requireAuth, kidsRouter);
 app.use("/chores", requireAuth, choresRouter);
 app.use("/payouts", requireAuth, payoutsRouter);
 app.use("/chore-requests", requireAuth, choreRequestsRouter);
+app.use("/shop", requireAuth, shopRouter);
 // Super admin is a flag on an ordinary household admin's user row. It also
 // requires that user's own admin-mode (PIN) token, since the app runs on a
 // device shared with kids.

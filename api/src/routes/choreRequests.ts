@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { pool } from "../db.js";
 import { requireAdminMode } from "../middleware/admin.js";
+import { FLAT_BISCUITS } from "../biscuits.js";
 
 export const choreRequestsRouter = Router();
 
@@ -35,12 +36,13 @@ type ChoreRequestRow = {
   requested_amount: string | null;
   status: (typeof REQUEST_STATUSES)[number];
   approved_amount: string | null;
+  biscuits_awarded: number | null;
   created_at: string;
   resolved_at: string | null;
 };
 
 const RETURNING_COLUMNS = `id, household_id, kid_id, enc_name, requested_amount, status,
-                 approved_amount, created_at, resolved_at`;
+                 approved_amount, biscuits_awarded, created_at, resolved_at`;
 
 function firstZodError(error: z.ZodError) {
   const flat = error.flatten();
@@ -198,12 +200,15 @@ choreRequestsRouter.post("/:id/approve", requireAdminMode, async (req, res) => {
     const amount = roundToCents(rawAmount);
 
     // Locks the kid row against concurrent completions/payouts touching balance
-    const balanceResult = await client.query<{ balance: string }>(
+    const balanceResult = await client.query<{
+      balance: string;
+      biscuits: number;
+    }>(
       `UPDATE kid_profiles
-       SET balance = balance + $3::numeric
+       SET balance = balance + $3::numeric, biscuits = biscuits + $4
        WHERE id = $1 AND household_id = $2 AND is_active = true
-       RETURNING balance`,
-      [choreRequest.kid_id, householdId, amount],
+       RETURNING balance, biscuits`,
+      [choreRequest.kid_id, householdId, amount, FLAT_BISCUITS],
     );
 
     if (!balanceResult.rows[0]) {
@@ -214,16 +219,19 @@ choreRequestsRouter.post("/:id/approve", requireAdminMode, async (req, res) => {
 
     const updated = await client.query<ChoreRequestRow>(
       `UPDATE chore_requests
-       SET status = 'approved', approved_amount = $3, resolved_at = NOW()
+       SET status = 'approved', approved_amount = $3, biscuits_awarded = $4,
+           resolved_at = NOW()
        WHERE id = $1 AND household_id = $2
        RETURNING ${RETURNING_COLUMNS}`,
-      [id, householdId, amount],
+      [id, householdId, amount, FLAT_BISCUITS],
     );
 
     await client.query("COMMIT");
-    res
-      .status(200)
-      .json({ ...updated.rows[0], balance: balanceResult.rows[0].balance });
+    res.status(200).json({
+      ...updated.rows[0],
+      balance: balanceResult.rows[0].balance,
+      biscuits: balanceResult.rows[0].biscuits,
+    });
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
