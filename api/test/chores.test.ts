@@ -393,6 +393,90 @@ describe("POST /chores/:id/complete", () => {
     );
   });
 
+  it("awards biscuits by days late for a recurring chore", async () => {
+    const kidId = "11111111-1111-4111-8111-111111111111";
+    const mockClient = await getMockClient();
+    const twoAndAHalfDaysAgo = new Date(
+      Date.now() - 2.5 * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: kidId }] }) // kid lookup
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "chore-1",
+            household_id: "household-uuid",
+            reward_amount: "1.00",
+            recurrence_type: "recurring",
+            recurrence_interval_days: 1,
+            eligible_kids: [],
+            is_active: true,
+            next_available_at: twoAndAHalfDaysAgo,
+            last_completed_at: null,
+          },
+        ],
+      }) // chore lookup
+      .mockResolvedValueOnce({
+        rows: [{ completed_at: new Date().toISOString() }],
+      }) // completion insert
+      .mockResolvedValueOnce({ rows: [{ balance: "1.00", biscuits: 14 }] }) // balance update
+      .mockResolvedValueOnce({ rows: [] }) // next_available_at update
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
+
+    const res = await request(app)
+      .post("/chores/chore-1/complete")
+      .set("Authorization", "Bearer " + makeAccessToken())
+      .send({ kid_id: kidId });
+
+    expect(res.status).toBe(200);
+    expect(res.body.biscuits_earned).toBe(4);
+    expect(res.body.biscuits).toBe(14);
+    expect(mockClient.query.mock.calls[3]?.[1]?.[4]).toBe(4);
+    expect(mockClient.query.mock.calls[4]?.[0]).toContain(
+      "biscuits = biscuits + $4",
+    );
+    expect(mockClient.query.mock.calls[4]?.[1]?.[3]).toBe(4);
+  });
+
+  it("awards a flat 5 biscuits for an ad-hoc chore", async () => {
+    const kidId = "11111111-1111-4111-8111-111111111111";
+    const mockClient = await getMockClient();
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: kidId }] }) // kid lookup
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "chore-1",
+            household_id: "household-uuid",
+            reward_amount: "1.00",
+            recurrence_type: "ad-hoc",
+            recurrence_interval_days: null,
+            eligible_kids: [],
+            is_active: true,
+            next_available_at: null,
+            last_completed_at: null,
+          },
+        ],
+      }) // chore lookup
+      .mockResolvedValueOnce({
+        rows: [{ completed_at: new Date().toISOString() }],
+      }) // completion insert
+      .mockResolvedValueOnce({ rows: [{ balance: "1.00", biscuits: 5 }] }) // balance update
+      .mockResolvedValueOnce({ rows: [] }) // deactivate ad-hoc
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
+
+    const res = await request(app)
+      .post("/chores/chore-1/complete")
+      .set("Authorization", "Bearer " + makeAccessToken())
+      .send({ kid_id: kidId });
+
+    expect(res.status).toBe(200);
+    expect(res.body.biscuits_earned).toBe(5);
+    expect(mockClient.query.mock.calls[3]?.[1]?.[4]).toBe(5);
+  });
+
   it("rejects completion when chore is not currently available", async () => {
     const kidId = "11111111-1111-4111-8111-111111111111";
     const mockClient = await getMockClient();

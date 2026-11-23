@@ -8,7 +8,7 @@
 
 **Chorgie** is a household chore-management app built for families. Parents (admins) define chores and reward amounts; kids view their available chores, mark them done, and track their earned balance. When a payout cycle ends the admin marks balances as paid, archiving the history for future reporting.
 
-The product is intentionally simple in scope for the MVP: no push notifications, no external payment integrations, no gamification beyond balance tracking.
+The product is intentionally simple in scope for the MVP: no push notifications, no external payment integrations, no gamification beyond balance tracking and **biscuits** (a non-money reward kids spend on avatar accessories, §6.11–6.12).
 
 ---
 
@@ -24,7 +24,7 @@ The product is intentionally simple in scope for the MVP: no push notifications,
 ### Non-Goals (MVP)
 - Push / email notifications
 - External payment integrations (Venmo, PayPal, CSV export)
-- Gamification (badges, streaks, leaderboards)
+- Gamification beyond biscuits and the avatar shop (badges, streaks, leaderboards)
 - Multi-household / shared chores
 - Native mobile app (web-only MVP)
 
@@ -103,7 +103,7 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 
 ### 6.3 Kid Profiles
 
-- Admin creates kid profiles with a **display name** and selects an avatar (corgi avatar set).
+- Admin creates kid profiles with a **display name** and selects an avatar from 6 corgis (see §9).
 - Kids are listed on the home screen as large tap targets.
 - Tapping a kid profile switches the view to that kid's dashboard — no PIN, no password.
 - Profiles can be reordered, edited, or deactivated by the admin.
@@ -174,6 +174,37 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 - Read-only, and limited to plaintext metadata — no encrypted household content (kid names, chore names, notes) is exposed, and the server couldn't decrypt it anyway.
 - `POST /auth/login`, `/auth/register` and `/auth/refresh` return `user.is_super_admin` so the client knows whether to show the nav item.
 
+### 6.11 Biscuits
+
+- **Biscuits** are a second reward alongside money: whole numbers, never converted to or from money, never paid out. Each kid has a running biscuit total (`kid_profiles.biscuits`, never negative).
+- **Recurring chores** pay by how late they're done, using the same day count as the "N days overdue" badge: full 24-hour periods since the chore became available again (`next_available_at`). The scale is the same for every recurring chore and isn't configurable:
+
+  | Days late | 0 (on time) | 1 | 2 | 3 | 4 | 5+ |
+  |---|---|---|---|---|---|---|
+  | Biscuits | 10 | 5 | 4 | 3 | 2 | 1 |
+
+  A recurring chore's first completion, or one an admin reopened early with override-availability, counts as on time.
+- **Ad-hoc and always-available chores** pay a flat **5** biscuits per completion, with no daily cap (repeats are visible to parents in History).
+- **Approved chore requests** (§6.9) pay a flat **5** biscuits, not adjustable by the admin.
+- The server computes and credits biscuits inside the same transaction as the money reward, and records what each entry paid (`chore_completions.biscuits_earned`, `chore_requests.biscuits_awarded`).
+- The kid's chore list shows each available chore's current biscuit value. Kid tiles, the History header, and History rows (`+N`) show biscuits. Biscuits are always drawn with the bone-shaped dog-biscuit icon.
+- There are no admin biscuit adjustments and no refunds.
+
+### 6.12 Avatar Shop
+
+- From the kid dashboard, a selected kid taps **Shop** (`/shop/:kidId`) to spend biscuits on accessories for their corgi avatar. Like chore requests, it's kid-facing and needs no admin mode.
+- The **catalog is fixed** and built into the app (server-side, since prices must be trusted). There are 16 items in 4 slots:
+  - **Hats:** Party hat 20 · Baseball cap 30 · Beanie 35 · Wizard hat 55 · Crown 70
+  - **Glasses:** Round glasses 25 · Sunglasses 35 · Star glasses 50
+  - **Neck:** Red collar 15 · Bandana 20 · Bow tie 25 · Flower 30
+  - **Outfits:** T-shirt 35 · Sweater 45 · Raincoat 55 · Superhero cape 70
+
+  Parents can't add items or change prices.
+- Tapping an item **tries it on** in a large preview of the kid's corgi. **Buy** is instant: no parent approval, the biscuits are deducted, and the item is worn right away. It's disabled with "Need N more" when the kid can't afford it. An item can only be bought once per kid.
+- A kid wears **at most one item per slot**. Swapping between owned items or taking one off is free and unlimited.
+- Worn items show on the kid's avatar everywhere: home tiles, the Family admin page, History.
+- No refunds or undo.
+
 ---
 
 ## 7. Non-Functional Requirements
@@ -230,6 +261,11 @@ POST   /chore-requests/:id/reject     – decline; no balance change; 409 if alr
 POST   /payouts                – record a payment of a given amount (≤ current balance) for a kid; decrements balance (admin)
 GET    /payouts/:id            – get a single payout
 
+GET    /shop/catalog                    – the fixed accessory catalog (id, slot, name, price)
+GET    /shop/kids/:kidId                – a kid's biscuits and owned items (with which are worn)
+POST   /shop/kids/:kidId/purchases      – buy an item; deducts its price and wears it; 409 if already owned or not enough biscuits (kid)
+PUT    /shop/kids/:kidId/equipped       – wear or take off an owned item; wearing replaces the item in that slot (kid)
+
 GET    /super-admin/households – list all households (id, created_at, timezone, completion_count) (admin mode + super admin)
 ```
 
@@ -246,8 +282,9 @@ GET    /super-admin/households – list all households (id, created_at, timezone
 ### Daily kid flow
 1. Home screen shows kid avatars. The header greets the logged-in email based on the device's local time ("Good morning" 5:00–11:59, "Good afternoon" 12:00–16:59, "Good evening" otherwise).
 2. Kid taps their avatar → sees their chore list and balance.
-3. Kid taps "Done!" on a chore → balance updates, chore moves to done.
+3. Kid taps "Done!" on a chore → balance and biscuits update (biscuits depend on how on-time a recurring chore was), chore moves to done.
 4. Kid did something not on the list → taps "+ I did something else", describes it, optionally suggests an amount → it shows as "Waiting for Approval" until an admin resolves it.
+5. Kid taps "Shop" → tries on accessories and spends biscuits on them; whatever they wear shows on their avatar.
 
 ### Admin flow
 1. Admin taps "Enter Admin Mode" → enters PIN → 10-min session begins.
@@ -262,7 +299,7 @@ GET    /super-admin/households – list all households (id, created_at, timezone
 
 - **Theme:** Corgi-themed — warm earth tones (tan, rust, cream, forest green accents)
 - **Typography:** Rounded, friendly sans-serif (e.g., Nunito or Poppins)
-- **Icons/Avatars:** Illustrated corgi avatar set (8–10 variants)
+- **Icons/Avatars:** 6 full-body corgi avatars, sitting and facing forward, wearing nothing. They share identical geometry and differ only by coat color (red & white, sable, tricolor, black & tan, cream, blue merle), drawn as inline SVG. Keeping the geometry identical lets future avatar accessories be drawn once and fit every avatar. Kids who had one of the retired avatars 7–12 were remapped to 1–6.
 - **Component library:** Custom built on top of Radix UI primitives + Tailwind CSS
 - **Animations:** Subtle celebration animation (corgi wag) on chore completion
 

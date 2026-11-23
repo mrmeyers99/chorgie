@@ -198,8 +198,7 @@
 .kidAvatar {
   width: 72px;
   height: 72px;
-  object-fit: contain;
-  border-radius: 50%;
+  display: block;
 }
 
 .avatarPicker {
@@ -246,6 +245,15 @@
 .kidBalance {
   font-size: 13px;
   color: var(--text);
+}
+
+.kidBiscuits {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-h);
 }
 
 .btnDanger {
@@ -331,6 +339,15 @@
 .choreItemDisabled .choreName,
 .choreItemDisabled .choreMeta {
   color: var(--text);
+}
+
+.choreBiscuits {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 8px;
+  font-weight: 700;
+  color: var(--text-h);
 }
 
 .choreName {

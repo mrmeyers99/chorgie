@@ -252,6 +252,22 @@ export const api = {
       `/kids/${kidId}/history?limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
       { headers: getAuthHeader() },
     ),
+  getShopCatalog: () =>
+    request('/shop/catalog', { headers: getAuthHeader() }),
+  getKidShop: (kidId) =>
+    request(`/shop/kids/${kidId}`, { headers: getAuthHeader() }),
+  buyShopItem: (kidId, itemId) =>
+    request(`/shop/kids/${kidId}/purchases`, {
+      method: 'POST',
+      headers: getAuthHeader(),
+      body: JSON.stringify({ item_id: itemId }),
+    }),
+  setShopItemEquipped: (kidId, itemId, equipped) =>
+    request(`/shop/kids/${kidId}/equipped`, {
+      method: 'PUT',
+      headers: getAuthHeader(),
+      body: JSON.stringify({ item_id: itemId, equipped }),
+    }),
 }
 
 // sessionStorage is cleared when the tab/browser closes, but the httpOnly

@@ -8,6 +8,10 @@ import SuperAdmin from "./pages/SuperAdmin.jsx";
 import PaymentHistory from "./pages/PaymentHistory.jsx";
 import AdminFamily from "./pages/AdminFamily.jsx";
 import ChoreRequests from "./pages/ChoreRequests.jsx";
+import Shop from "./pages/Shop.jsx";
+import CorgiAvatar from "./components/CorgiAvatar.jsx";
+import BiscuitIcon from "./components/BiscuitIcon.jsx";
+import { biscuitsForChore } from "./lib/biscuits.js";
 import { api, bootstrapSession } from "./lib/api.js";
 import { encryptField, safeDecryptField } from "./lib/crypto.js";
 import { requireHouseholdKey, clearHouseholdKey } from "./lib/keyStore.js";
@@ -174,9 +178,14 @@ function Home() {
       const data = await api.completeChore(choreId, { kid_id: selectedKid.id });
       await Promise.all([loadChores(), loadKids()]);
       const reward = Number(data.reward_amount);
+      const biscuits = Number(data.biscuits_earned);
+      const biscuitText =
+        biscuits > 0
+          ? ` and ${biscuits} biscuit${biscuits === 1 ? "" : "s"}`
+          : "";
       setStatus(
         Number.isFinite(reward)
-          ? `${selectedKid.enc_display_name} earned $${reward.toFixed(2)}!`
+          ? `${selectedKid.enc_display_name} earned ${reward.toFixed(2)}${biscuitText}!`
           : "Chore completed.",
       );
     } catch (err) {
@@ -291,17 +300,21 @@ function Home() {
                   onClick={() => handleKidSelect(kid.id)}
                   className={`${styles.kidSelectBtn}${selectedKidId === kid.id ? ` ${styles.kidSelectBtnActive}` : ""}`}
                 >
-                  <img
-                    src={`/avatars/${kid.avatar_id}.png`}
-                    alt={`${kid.enc_display_name}'s avatar`}
+                  <CorgiAvatar
+                    avatarId={kid.avatar_id}
+                    accessories={kid.equipped_items}
+                    label={`${kid.enc_display_name}'s avatar`}
                     className={styles.kidAvatar}
-                    onError={(e) => {
-                      e.currentTarget.src = "/avatars/corgi-1.png";
-                    }}
                   />
                   <span className={styles.kidName}>{kid.enc_display_name}</span>
                   <span className={styles.kidBalance}>
                     ${Number(kid.balance ?? 0).toFixed(2)}
+                  </span>
+                  <span
+                    className={styles.kidBiscuits}
+                    aria-label={`${kid.biscuits ?? 0} biscuits`}
+                  >
+                    <BiscuitIcon label="" /> {kid.biscuits ?? 0}
                   </span>
                 </button>
               </li>
@@ -341,6 +354,13 @@ function Home() {
               >
                 + I did something else
               </button>
+              <Link
+                to={`/shop/${selectedKid.id}`}
+                className={`${styles.btn} ${styles.btnPrimary}`}
+              >
+                <BiscuitIcon label="" />
+                &nbsp;Shop
+              </Link>
               <Link
                 to={`/history?kid=${selectedKid.id}`}
                 className={`${styles.btn} ${styles.btnSecondary}`}
@@ -385,6 +405,12 @@ function Home() {
                           )}
                           <span className={styles.choreMeta}>
                             ${chore.reward_amount}
+                            <span
+                              className={styles.choreBiscuits}
+                              aria-label={`${biscuitsForChore(chore)} biscuits`}
+                            >
+                              <BiscuitIcon label="" /> {biscuitsForChore(chore)}
+                            </span>
                             {daysOverdue > 0 && (
                               <span className={styles.overdueBadge}>
                                 {daysOverdue} day{daysOverdue === 1 ? "" : "s"}{" "}
@@ -618,6 +644,15 @@ function App() {
           <>
             <PageMeta title="History" noindex />
             <PaymentHistory />
+          </>
+        }
+      />
+      <Route
+        path="/shop/:kidId"
+        element={
+          <>
+            <PageMeta title="Shop" noindex />
+            <Shop />
           </>
         }
       />

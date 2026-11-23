@@ -76,13 +76,23 @@ kidsRouter.get("/", async (_req, res) => {
       avatar_id: string;
       sort_order: number;
       balance: string;
+      biscuits: number;
       is_active: boolean;
       created_at: string;
+      equipped_items: string[];
     }>(
-      `SELECT id, enc_display_name, avatar_id, sort_order, balance, is_active, created_at
-       FROM kid_profiles
-       WHERE household_id = $1
-       ORDER BY sort_order ASC, created_at ASC`,
+      `SELECT kp.id, kp.enc_display_name, kp.avatar_id, kp.sort_order, kp.balance,
+              kp.biscuits, kp.is_active, kp.created_at,
+              COALESCE(
+                (SELECT ARRAY_AGG(ki.item_id ORDER BY ki.item_id)
+                 FROM kid_items ki
+                 WHERE ki.kid_id = kp.id AND ki.household_id = kp.household_id
+                   AND ki.equipped),
+                '{}'
+              ) AS equipped_items
+       FROM kid_profiles kp
+       WHERE kp.household_id = $1
+       ORDER BY kp.sort_order ASC, kp.created_at ASC`,
       [householdId],
     );
 
@@ -119,12 +129,13 @@ kidsRouter.post("/", requireAdminMode, async (req, res) => {
       avatar_id: string;
       sort_order: number;
       balance: string;
+      biscuits: number;
       is_active: boolean;
       created_at: string;
     }>(
       `INSERT INTO kid_profiles (household_id, enc_display_name, avatar_id, sort_order)
        VALUES ($1, $2, $3, $4)
-       RETURNING id, enc_display_name, avatar_id, sort_order, balance, is_active, created_at`,
+       RETURNING id, enc_display_name, avatar_id, sort_order, balance, biscuits, is_active, created_at`,
       [householdId, enc_display_name, avatar_id, sort_order],
     );
 
@@ -222,12 +233,14 @@ kidsRouter.get("/:id/history", async (req, res) => {
       chore_id: string | null;
       chore_name: string | null;
       enc_notes: string | null;
+      biscuits: number | null;
     }>(
       `SELECT * FROM (
          SELECT cc.id, 'completion' AS type, cc.completed_at AS occurred_at,
                 to_char(cc.completed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS occurred_at_raw,
                 cc.reward_amount AS amount, cc.chore_id,
-                cd.enc_name AS chore_name, NULL AS enc_notes
+                cd.enc_name AS chore_name, NULL AS enc_notes,
+                cc.biscuits_earned AS biscuits
          FROM chore_completions cc
          JOIN chore_definitions cd ON cc.chore_id = cd.id AND cc.household_id = cd.household_id
          WHERE cc.kid_id = $1 AND cc.household_id = $2
@@ -236,7 +249,8 @@ kidsRouter.get("/:id/history", async (req, res) => {
          SELECT cr.id, 'extra' AS type, cr.resolved_at AS occurred_at,
                 to_char(cr.resolved_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS occurred_at_raw,
                 cr.approved_amount AS amount, NULL AS chore_id,
-                cr.enc_name AS chore_name, NULL AS enc_notes
+                cr.enc_name AS chore_name, NULL AS enc_notes,
+                cr.biscuits_awarded AS biscuits
          FROM chore_requests cr
          WHERE cr.kid_id = $1 AND cr.household_id = $2 AND cr.status = 'approved'
            AND ($3::timestamptz IS NULL OR (cr.resolved_at, cr.id) < ($3::timestamptz, $4::uuid))
@@ -244,7 +258,8 @@ kidsRouter.get("/:id/history", async (req, res) => {
          SELECT p.id, 'payout' AS type, p.paid_at AS occurred_at,
                 to_char(p.paid_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS occurred_at_raw,
                 p.amount, NULL AS chore_id,
-                NULL AS chore_name, p.enc_notes
+                NULL AS chore_name, p.enc_notes,
+                NULL::integer AS biscuits
          FROM payouts p
          WHERE p.kid_id = $1 AND p.household_id = $2
            AND ($3::timestamptz IS NULL OR (p.paid_at, p.id) < ($3::timestamptz, $4::uuid))
@@ -277,6 +292,7 @@ kidsRouter.get("/:id/history", async (req, res) => {
       chore_id: row.chore_id,
       chore_name: row.chore_name,
       enc_notes: row.enc_notes,
+      biscuits: row.biscuits,
     }));
 
     res.status(200).json({ entries, next_cursor: nextCursor });
@@ -313,6 +329,7 @@ kidsRouter.patch("/:id", requireAdminMode, async (req, res) => {
       avatar_id: string;
       sort_order: number;
       balance: string;
+      biscuits: number;
       is_active: boolean;
       created_at: string;
     }>(
@@ -322,7 +339,7 @@ kidsRouter.patch("/:id", requireAdminMode, async (req, res) => {
            sort_order = COALESCE($5, sort_order),
            is_active = COALESCE($6, is_active)
        WHERE id = $1 AND household_id = $2
-       RETURNING id, enc_display_name, avatar_id, sort_order, balance, is_active, created_at`,
+       RETURNING id, enc_display_name, avatar_id, sort_order, balance, biscuits, is_active, created_at`,
       [
         id,
         householdId,

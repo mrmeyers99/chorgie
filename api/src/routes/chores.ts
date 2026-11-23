@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { pool } from "../db.js";
 import { requireAdminMode } from "../middleware/admin.js";
+import { biscuitsForCompletion } from "../biscuits.js";
 
 export const choresRouter = Router();
 
@@ -614,19 +615,30 @@ choresRouter.post("/:id/complete", async (req, res) => {
       return;
     }
 
-    const completionResult = await client.query<{ completed_at: string }>(
-      `INSERT INTO chore_completions (household_id, chore_id, kid_id, reward_amount)
-       VALUES ($1, $2, $3, $4)
-       RETURNING completed_at`,
-      [householdId, chore.id, kid_id, chore.reward_amount],
+    // Lateness is measured against next_available_at as it stood before this
+    // completion reschedules it below
+    const biscuitsEarned = biscuitsForCompletion(
+      chore.recurrence_type,
+      chore.next_available_at,
+      new Date(),
     );
 
-    const balanceResult = await client.query<{ balance: string }>(
+    const completionResult = await client.query<{ completed_at: string }>(
+      `INSERT INTO chore_completions (household_id, chore_id, kid_id, reward_amount, biscuits_earned)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING completed_at`,
+      [householdId, chore.id, kid_id, chore.reward_amount, biscuitsEarned],
+    );
+
+    const balanceResult = await client.query<{
+      balance: string;
+      biscuits: number;
+    }>(
       `UPDATE kid_profiles
-       SET balance = balance + $3::numeric
+       SET balance = balance + $3::numeric, biscuits = biscuits + $4
        WHERE id = $1 AND household_id = $2
-       RETURNING balance`,
-      [kid_id, householdId, chore.reward_amount],
+       RETURNING balance, biscuits`,
+      [kid_id, householdId, chore.reward_amount, biscuitsEarned],
     );
 
     if (chore.recurrence_type === "ad-hoc") {
@@ -660,6 +672,8 @@ choresRouter.post("/:id/complete", async (req, res) => {
       kid_id,
       reward_amount: chore.reward_amount,
       balance: balanceResult.rows[0]?.balance,
+      biscuits_earned: biscuitsEarned,
+      biscuits: balanceResult.rows[0]?.biscuits,
       completed_at: completionResult.rows[0]?.completed_at,
     });
   } catch (err) {

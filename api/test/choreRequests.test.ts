@@ -219,7 +219,7 @@ describe("POST /chore-requests/:id/approve", () => {
     mockClient.query
       .mockResolvedValueOnce({}) // BEGIN
       .mockResolvedValueOnce({ rows: [pendingRow()] }) // lock request
-      .mockResolvedValueOnce({ rows: [{ balance: "12.50" }] }) // balance
+      .mockResolvedValueOnce({ rows: [{ balance: "12.50", biscuits: 25 }] }) // balance
       .mockResolvedValueOnce({
         rows: [pendingRow({ status: "approved", approved_amount: "2.50" })],
       }) // update request
@@ -235,15 +235,21 @@ describe("POST /chore-requests/:id/approve", () => {
     expect(res.body.status).toBe("approved");
     expect(res.body.balance).toBe("12.50");
     expect(mockClient.query.mock.calls[1][0]).toContain("FOR UPDATE");
+    expect(res.body.biscuits).toBe(25);
+    expect(mockClient.query.mock.calls[2][0]).toContain(
+      "biscuits = biscuits + $4",
+    );
     expect(mockClient.query.mock.calls[2][1]).toEqual([
       kidId,
       householdId,
       2.5,
+      5,
     ]);
     expect(mockClient.query.mock.calls[3][1]).toEqual([
       requestId,
       householdId,
       2.5,
+      5,
     ]);
     expect(mockClient.query.mock.calls[4][0]).toBe("COMMIT");
   });

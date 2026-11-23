@@ -12,9 +12,11 @@ erDiagram
     HOUSEHOLDS ||--o{ CHORE_COMPLETIONS : has
     HOUSEHOLDS ||--o{ PAYOUTS : has
     HOUSEHOLDS ||--o{ CHORE_REQUESTS : has
+    HOUSEHOLDS ||--o{ KID_ITEMS : has
     KID_PROFILES ||--o{ CHORE_COMPLETIONS : completes
     KID_PROFILES ||--o{ PAYOUTS : receives
     KID_PROFILES ||--o{ CHORE_REQUESTS : submits
+    KID_PROFILES ||--o{ KID_ITEMS : owns
     CHORE_DEFINITIONS ||--o{ CHORE_COMPLETIONS : logs
     CHORE_DEFINITIONS }o--o{ KID_PROFILES : "eligible via CHORE_ELIGIBLE_KIDS"
 
@@ -44,6 +46,7 @@ erDiagram
         integer sort_order
         boolean is_active
         numeric balance
+        integer biscuits
         timestamptz created_at
     }
 
@@ -72,6 +75,7 @@ erDiagram
         uuid chore_id FK
         uuid kid_id FK
         numeric reward_amount
+        integer biscuits_earned
         timestamptz completed_at
     }
 
@@ -83,8 +87,19 @@ erDiagram
         numeric requested_amount "nullable"
         text status "pending | approved | rejected"
         numeric approved_amount "nullable"
+        integer biscuits_awarded "nullable"
         timestamptz created_at
         timestamptz resolved_at
+    }
+
+    KID_ITEMS {
+        uuid kid_id PK,FK
+        text item_id PK "shop catalog id"
+        uuid household_id FK
+        text slot "hat | eyes | neck | outfit"
+        integer price_paid
+        boolean equipped "max one per kid+slot"
+        timestamptz purchased_at
     }
 
     PAYOUTS {

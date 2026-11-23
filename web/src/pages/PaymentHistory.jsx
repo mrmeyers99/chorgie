@@ -3,14 +3,9 @@ import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { safeDecryptField } from "../lib/crypto.js";
 import { requireHouseholdKey } from "../lib/keyStore.js";
+import CorgiAvatar from "../components/CorgiAvatar.jsx";
+import BiscuitIcon from "../components/BiscuitIcon.jsx";
 import styles from "./PaymentHistory.module.css";
-
-const AVATAR_EMOJI = {
-  "corgi-1": "🐕",
-  "corgi-2": "🐶",
-  "corgi-3": "🦮",
-  "corgi-4": "🐾",
-};
 
 const HISTORY_PAGE_SIZE = 20;
 
@@ -194,9 +189,12 @@ function PaymentHistory() {
                   onClick={() => handleKidSelect(kid)}
                   className={styles.kidSelectBtn}
                 >
-                  <span className={styles.kidAvatar}>
-                    {AVATAR_EMOJI[kid.avatar_id] ?? "🐾"}
-                  </span>
+                  <CorgiAvatar
+                    avatarId={kid.avatar_id}
+                    accessories={kid.equipped_items}
+                    label=""
+                    className={styles.kidAvatar}
+                  />
                   <span className={styles.kidName}>{kid.enc_display_name}</span>
                 </button>
               </li>
@@ -210,15 +208,21 @@ function PaymentHistory() {
       ) : selectedKid ? (
         <div className={styles.historyContent}>
           <div className={styles.kidInfo}>
-            <span className={styles.kidAvatarLarge}>
-              {AVATAR_EMOJI[selectedKid.avatar_id] ?? "🐾"}
-            </span>
+            <CorgiAvatar
+              avatarId={selectedKid.avatar_id}
+              accessories={selectedKid.equipped_items}
+              label=""
+              className={styles.kidAvatarLarge}
+            />
             <div>
               <h2 className={styles.kidNameLarge}>
                 {selectedKid.enc_display_name}
               </h2>
               <p className={styles.kidBalance}>
                 Current Balance: ${Number(selectedKid.balance ?? 0).toFixed(2)}
+              </p>
+              <p className={styles.kidBiscuits}>
+                <BiscuitIcon label="" /> {selectedKid.biscuits ?? 0} biscuits
               </p>
             </div>
           </div>
@@ -261,6 +265,14 @@ function PaymentHistory() {
                     <span className={styles.amount}>
                       {entry.type === "payout" ? "−" : "+"}$
                       {Number(entry.amount).toFixed(2)}
+                      {entry.biscuits > 0 && (
+                        <span
+                          className={styles.entryBiscuits}
+                          aria-label={`plus ${entry.biscuits} biscuits`}
+                        >
+                          +{entry.biscuits} <BiscuitIcon label="" />
+                        </span>
+                      )}
                     </span>
                   </li>
                 ))}

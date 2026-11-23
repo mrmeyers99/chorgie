@@ -4,23 +4,10 @@ import { api } from "../lib/api.js";
 import { encryptField, safeDecryptField } from "../lib/crypto.js";
 import { requireHouseholdKey } from "../lib/keyStore.js";
 import Modal from "../components/Modal.jsx";
+import CorgiAvatar from "../components/CorgiAvatar.jsx";
+import { AVATARS, DEFAULT_AVATAR_ID } from "../lib/avatars.js";
 import AdminLayout from "./AdminLayout.jsx";
 import styles from "./AdminFamily.module.css";
-
-const AVATARS = [
-  { id: "corgi-1", label: "Corgi #1" },
-  { id: "corgi-2", label: "Corgi #2" },
-  { id: "corgi-3", label: "Corgi #3" },
-  { id: "corgi-4", label: "Corgi #4" },
-  { id: "corgi-5", label: "Corgi #5" },
-  { id: "corgi-6", label: "Corgi #6" },
-  { id: "corgi-7", label: "Corgi #7" },
-  { id: "corgi-8", label: "Corgi #8" },
-  { id: "corgi-9", label: "Corgi #9" },
-  { id: "corgi-10", label: "Corgi #10" },
-  { id: "corgi-11", label: "Corgi #11" },
-  { id: "corgi-12", label: "Corgi #12" },
-];
 
 export default function AdminFamily() {
   const userEmail = sessionStorage.getItem("userEmail");
@@ -30,7 +17,7 @@ export default function AdminFamily() {
   const [status, setStatus] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [kidName, setKidName] = useState("");
-  const [avatarId, setAvatarId] = useState("corgi-1");
+  const [avatarId, setAvatarId] = useState(DEFAULT_AVATAR_ID);
   const [showPayoutDialog, setShowPayoutDialog] = useState(false);
   const [payoutKidId, setPayoutKidId] = useState("");
   const [payoutAmount, setPayoutAmount] = useState("");
@@ -77,7 +64,7 @@ export default function AdminFamily() {
         avatar_id: avatarId,
       });
       setKidName("");
-      setAvatarId("corgi-1");
+      setAvatarId(DEFAULT_AVATAR_ID);
       setShowCreateForm(false);
       await loadKids();
       setStatus("Kid profile created.");
@@ -245,7 +232,7 @@ export default function AdminFamily() {
                   title={label}
                   aria-pressed={avatarId === id}
                 >
-                  <img src={`/avatars/${id}.png`} alt={label} />
+                  <CorgiAvatar avatarId={id} label={label} />
                 </button>
               ))}
             </div>
@@ -278,13 +265,11 @@ export default function AdminFamily() {
         <ul className={styles.kidGrid}>
           {kids.map((kid) => (
             <li key={kid.id} className={styles.kidCard}>
-              <img
-                src={`/avatars/${kid.avatar_id}.png`}
-                alt={`${kid.enc_display_name}'s avatar`}
+              <CorgiAvatar
+                avatarId={kid.avatar_id}
+                accessories={kid.equipped_items}
+                label={`${kid.enc_display_name}'s avatar`}
                 className={styles.kidAvatar}
-                onError={(e) => {
-                  e.currentTarget.src = "/avatars/corgi-1.png";
-                }}
               />
               <span className={styles.kidName}>{kid.enc_display_name}</span>
               <span className={styles.kidBalance}>
