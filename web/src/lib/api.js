@@ -1,22 +1,11 @@
 import { clearHouseholdKey } from './keyStore.js'
+import { redirectToLogin } from './session.js'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
-function handleExpiredSession() {
-  sessionStorage.removeItem('accessToken')
-  sessionStorage.removeItem('csrfToken')
-  sessionStorage.removeItem('adminModeToken')
-  sessionStorage.removeItem('userEmail')
-  sessionStorage.removeItem('isSuperAdmin')
-  clearHouseholdKey()
-  window.location.replace('/login')
-}
-
-function shouldRedirectToLogin(path) {
-  if (path === '/auth/login' || path === '/auth/register') {
-    return false
-  }
-  return Boolean(sessionStorage.getItem('accessToken'))
+async function handleExpiredSession() {
+  await clearHouseholdKey()
+  return redirectToLogin()
 }
 
 function getAuthHeader() {
@@ -39,31 +28,85 @@ function getAdminModeHeader() {
   return adminModeToken ? { 'x-admin-mode-token': adminModeToken } : {}
 }
 
-async function request(path, options = {}) {
+function storeSession(data) {
+  sessionStorage.setItem('accessToken', data.accessToken)
+  if (data.csrfToken) sessionStorage.setItem('csrfToken', data.csrfToken)
+  if (data.user?.email) sessionStorage.setItem('userEmail', data.user.email)
+  if (data.user?.is_super_admin) {
+    sessionStorage.setItem('isSuperAdmin', 'true')
+  } else {
+    sessionStorage.removeItem('isSuperAdmin')
+  }
+}
+
+async function send(path, options) {
   const { headers: optionHeaders, ...restOptions } = options
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { 'Content-Type': 'application/json', ...optionHeaders },
     credentials: 'include',
     ...restOptions,
   })
-
   const body = await res.json().catch(() => ({}))
+  return { res, body }
+}
 
-  if (!res.ok) {
-    if (res.status === 401 && shouldRedirectToLogin(path)) {
-      handleExpiredSession()
-    }
+// Access tokens live 15 minutes; the refresh cookie lives 30 days. Several
+// requests often expire together (a page loads kids, chores and requests in
+// parallel), so they share one in-flight refresh rather than each rotating
+// the refresh token and racing each other.
+let refreshInFlight = null
 
-    const message =
-      typeof body?.error === 'string'
-        ? body.error
-        : body?.error?.formErrors?.[0] ??
-          Object.values(body?.error?.fieldErrors ?? {}).flat()[0] ??
-          `Request failed with status ${res.status}`
-    const err = new Error(message)
-    err.status = res.status
-    throw err
+function refreshAccessToken() {
+  if (!refreshInFlight) {
+    refreshInFlight = send('/auth/refresh', {
+      method: 'POST',
+      headers: getCsrfHeader(),
+    })
+      .then(({ res, body }) => {
+        if (!res.ok || !body?.accessToken) return false
+        storeSession(body)
+        return true
+      })
+      .catch(() => false)
+      .finally(() => {
+        refreshInFlight = null
+      })
   }
+  return refreshInFlight
+}
+
+function toError(res, body) {
+  const message =
+    typeof body?.error === 'string'
+      ? body.error
+      : body?.error?.formErrors?.[0] ??
+        Object.values(body?.error?.fieldErrors ?? {}).flat()[0] ??
+        `Request failed with status ${res.status}`
+  const err = new Error(message)
+  err.status = res.status
+  return err
+}
+
+async function request(path, options = {}) {
+  // Only requests sent with a bearer token can be rescued by a refresh;
+  // login/register/refresh/logout surface their 401s to the caller as-is.
+  const usesAccessToken = Boolean(options.headers?.Authorization)
+
+  let { res, body } = await send(path, options)
+
+  if (res.status === 401 && usesAccessToken) {
+    const refreshed = await refreshAccessToken()
+    if (!refreshed) return handleExpiredSession()
+
+    // Re-read the Authorization header so the retry carries the new token.
+    ;({ res, body } = await send(path, {
+      ...options,
+      headers: { ...options.headers, ...getAuthHeader() },
+    }))
+    if (res.status === 401) return handleExpiredSession()
+  }
+
+  if (!res.ok) throw toError(res, body)
 
   return body
 }
@@ -221,14 +264,7 @@ export async function bootstrapSession() {
 
   try {
     const data = await api.refresh()
-    sessionStorage.setItem('accessToken', data.accessToken)
-    if (data.csrfToken) sessionStorage.setItem('csrfToken', data.csrfToken)
-    if (data.user?.email) sessionStorage.setItem('userEmail', data.user.email)
-    if (data.user?.is_super_admin) {
-      sessionStorage.setItem('isSuperAdmin', 'true')
-    } else {
-      sessionStorage.removeItem('isSuperAdmin')
-    }
+    storeSession(data)
     return true
   } catch {
     return false
