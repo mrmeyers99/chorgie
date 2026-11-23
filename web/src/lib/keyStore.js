@@ -1,3 +1,5 @@
+import { redirectToLogin } from './session.js'
+
 /**
  * Persists the household encryption key (a non-extractable CryptoKey) in
  * IndexedDB so it survives a page reload within the same browser/tab, since
@@ -75,18 +77,14 @@ export async function clearHouseholdKey() {
 /**
  * Returns the household key, or forces a fresh login if the session looks
  * valid (an access token is present) but the key can't be recovered — the
- * only way to re-derive it is re-entering the password.
+ * only way to re-derive it is re-entering the password. In that case the
+ * returned promise never settles (see redirectToLogin), so callers stop
+ * instead of re-rendering against an emptied session.
  */
 export async function requireHouseholdKey() {
   const key = await getHouseholdKey()
   if (key) return key
 
   await clearHouseholdKey()
-  sessionStorage.removeItem('accessToken')
-  sessionStorage.removeItem('csrfToken')
-  sessionStorage.removeItem('adminModeToken')
-  sessionStorage.removeItem('userEmail')
-  sessionStorage.removeItem('isSuperAdmin')
-  window.location.replace('/login')
-  return null
+  return redirectToLogin()
 }

@@ -90,6 +90,7 @@ Not in scope for v1 — admin password change will require re-encryption of all 
 
 - A new user registers with **email + password** to create a household.
 - JWT-based session; access token short-lived (15 min), refresh token long-lived (30 days), stored in an `httpOnly` cookie.
+- The client silently refreshes an expired access token: on a `401` from an authenticated request it calls `/auth/refresh` once (shared across any parallel requests that expired together) and retries. Only if the refresh fails is the user sent to the login page, via a single clean redirect with no intermediate error/landing-page flashes.
 - Single household per account for MVP.
 
 ### 6.2 Admin Mode
