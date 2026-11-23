@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { deriveHouseholdKey } from "../lib/crypto.js";
 import { setHouseholdKey } from "../lib/keyStore.js";
 import { api } from "../lib/api.js";
+import PinInput from "../components/PinInput.jsx";
 import PageMeta from "../components/PageMeta.jsx";
 import styles from "./Register.module.css";
 
@@ -167,15 +168,9 @@ export default function Register() {
 
           <div className={styles.field}>
             <label htmlFor="admin_pin">Admin PIN</label>
-            <input
+            <PinInput
               id="admin_pin"
               name="admin_pin"
-              type="password"
-              autoComplete="new-password"
-              inputMode="numeric"
-              pattern="[0-9]{4,8}"
-              minLength={4}
-              maxLength={8}
               required
               value={form.admin_pin}
               onChange={handleChange}
@@ -185,15 +180,9 @@ export default function Register() {
 
           <div className={styles.field}>
             <label htmlFor="confirmAdminPin">Confirm admin PIN</label>
-            <input
+            <PinInput
               id="confirmAdminPin"
               name="confirmAdminPin"
-              type="password"
-              autoComplete="new-password"
-              inputMode="numeric"
-              pattern="[0-9]{4,8}"
-              minLength={4}
-              maxLength={8}
               required
               value={form.confirmAdminPin}
               onChange={handleChange}
